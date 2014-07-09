@@ -21,3 +21,60 @@ function drush_recipes_profiler_builder_menu() {
   );
   return $items;
 }
+
+/**
+ * Implements hook_profiler_builder_build_files_alter().
+ * @param  [array] $files [array keys are filename, value is contents]
+ */
+function drush_recipes_profiler_builder_profiler_builder_build_files_alter(&$files) {
+  $files['auto_recipe.drecipe'] = drush_recipes_profiler_builder_build_file();
+}
+
+/**
+ * Helper to build the file to deliver.
+ * @return [string] [file contents for the recipe file]
+ */
+function drush_recipes_profiler_builder_build_file() {
+  $output = '{
+  "name": "Security update status",
+  "drush_recipes_api": "1.0",
+  "dependencies": [
+    "update"
+  ],
+  "recipe": ';
+  $query_files = _profiler_builder_extras_load_query_files(FALSE);
+  $calls = array();
+  foreach ($query_files as $queries) {
+    foreach ($queries as $query) {
+      $call = array();
+      dpm($query);
+      // @todo test for the type of query that we can map to a drush function
+      if (strpos($query['query'], 'variable SET value')) {
+        $call[] = 'ev';
+        $var = unserialize($query['args'][':db_update_placeholder_0']);
+        $call[] = 'variable_set(\'' . $query['args'][':db_condition_placeholder_0'] . '\', ' . var_export($var, TRUE) . ')';
+      }
+      elseif(strpos($query['query'], 'INTO variable (name, value)')) {
+        $call[] = 'ev';
+        $var = unserialize($query['args'][':db_insert_placeholder_1']);
+        $call[] = 'variable_set(\'' . $query['args'][':db_insert_placeholder_0'] . '\', ' . var_export($var, TRUE) . ')';
+      }
+      if (!empty($call)) {
+        $calls[] = $call;
+      }
+    }
+  }
+  if (!empty($calls)) {
+    $output .= json_encode($calls, JSON_PRETTY_PRINT);
+  }
+  $output .= ',
+  "metadata": {
+    "description": "Report on the update status of known security related issues.",
+    "version": "1.0",
+    "author": "btopro"
+  }
+}
+';
+
+  return $output;
+}
