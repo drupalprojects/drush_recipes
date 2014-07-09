@@ -111,6 +111,9 @@ function drush_drush_recipes_drush_execute_recipes($list = '') {
   }
   $recipes = _drush_recipes_system_rebuild_recipe_data();
   $execute = array_intersect_key($recipes, array_flip($list));
+  // @todo utilize the recipe weight to ensure correct weighted firing order
+  // This should only be used when all defined at once, cookbook style recipes
+  // need to treat them sequentially.
   foreach ($execute as $recipe) {
     $commands += _drush_recipes_recipe_to_drush($recipe->drecipe['recipe'], TRUE);
   }
