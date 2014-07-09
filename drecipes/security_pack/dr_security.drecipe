@@ -1,0 +1,40 @@
+{
+  "name": "Security defaults",
+  "drush_recipes_api": "1.0",
+  "weight": 0,
+  "dependencies": [
+    "seckit",
+    "paranoia"
+  ],
+  "recipe": [
+    "dr_admin_update_status.drecipe",
+    [
+      "vset",
+      "user_register",
+      "1"
+    ],
+    [
+      "dis",
+      "php"
+    ],
+    [
+      "pm-uninstall",
+      "php"
+    ],
+    [
+      "en",
+      "seckit"
+    ],
+    [
+      "en",
+      "paranoia"
+    ]
+  ],
+  "metadata": {
+    "descrption": "Disable projects that cause issues, increase h-our defenses cap'in!",
+    "version": "1.0",
+    "type": "add-on",
+    "author": "btopro",
+    "logo": "files\/image.png"
+  }
+}
