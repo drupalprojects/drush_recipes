@@ -102,16 +102,35 @@ function drush_drush_recipes_drush_list_recipes($list = array()) {
 /**
  * Drush command callback for drush-execute-recipes.
  */
-function drush_drush_recipes_drush_execute_recipes($list = array()) {
+function drush_drush_recipes_drush_execute_recipes($list = '') {
+  $commands = array();
+  $list = explode(',', $list);
+  if (empty($list)) {
+    drush_log('You must specify recipes to execute! try running drush dlr for a listing of commands', 'error');
+    return FALSE;
+  }
   $recipes = _drush_recipes_system_rebuild_recipe_data();
-  $execute = array_intersect($recipes, $list);
+  $execute = array_intersect_key($recipes, array_flip($list));
+  foreach ($execute as $recipe) {
+    $commands += _drush_recipes_recipe_to_drush($recipe->drecipe['recipe'], TRUE);
+  }
+  drush_print(implode("\n", $commands));
   // confirm execution as this can be a ton of drush commands
-  if (drush_confirm('Are you sure you want to execute these recipes? ' . implode(' ', array_keys($execute)))) {
-    //@todo execute the recipies via dispatch or drush_invoke not sure which
-    drush_dispatch($command, $arguments);
+  if (drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($execute)))) {
+    foreach ($commands as $command) {
+      $command .= ' --y';
+      //@todo execute the recipies via dispatch or drush_invoke not sure which
+      drush_log('About to execute: ' . $command, 'ok');
+      drush_shell_exec($command);
+      $shell_output = drush_shell_exec_output();
+      foreach ($shell_output as $shell) {
+        drush_print($shell);
+      }
+      drush_log($command . ' complete!', 'ok');
+    }
   }
   else {
-    drush_print('Operation aborted.');
+    return drush_user_abort();
   }
 }
 
@@ -122,6 +141,11 @@ function drush_drush_recipes_drush_execute_recipes($list = array()) {
  * support for modules, themes, and "drecipes" directory structures.
  */
 function _drush_recipes_system_rebuild_recipe_data() {
+  // test for static cache of output
+  $recipes = &drupal_static(__FUNCTION__);
+  if (isset($recipes)) {
+    return $recipes;
+  }
   // @todo need to cache this for improved performance in discovery
   $recipes = array();
   // file preg_match pattern
@@ -261,14 +285,31 @@ function _drush_recipes_load_recipe($path) {
  * @param  [array] $recipe a structured array of drush calls in recipe format
  * @return [array]         array of drush calls in order they should execute
  */
-function _drush_recipes_recipe_to_drush($recipe) {
+function _drush_recipes_recipe_to_drush($recipe, $recurse = FALSE) {
   $drush = array();
   foreach ($recipe as $call) {
     if (is_array($call)) {
       $drush[] = 'drush ' . implode(' ', $call);
     }
     else {
-      $drush[] = 'drush der'  . $call;
+      // we have a recipe nested, lets look up how to build it and recurse
+      // but only if told to do so, may just want to reference the command
+      if ($recurse) {
+        // pull data for full object, fortunately it's static cached
+        $recipes = _drush_recipes_system_rebuild_recipe_data();
+        // loop through items to cross reference with filename
+        foreach ($recipes as $item) {
+          // if call matches filename we recurse through that filename's recipe
+          if ($item->filename == $call) {
+            $drush += _drush_recipes_recipe_to_drush($item->drecipe['recipe']);
+            continue;
+          }
+        }
+        drush_print_r($call);
+      }
+      else {
+        $drush[] = 'drush der '  . str_replace('.drecipe', '', $call);
+      }
     }
   }
   return $drush;
