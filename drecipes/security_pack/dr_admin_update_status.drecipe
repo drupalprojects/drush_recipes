@@ -24,7 +24,7 @@
     ]
   ],
   "metadata": {
-    "descrption": "Report on the update status of known security related issues.",
+    "description": "Report on the update status of known security related issues.",
     "version": "1.0",
     "author": "btopro"
   }
