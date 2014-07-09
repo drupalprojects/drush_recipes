@@ -19,7 +19,7 @@
 /**
  * Implements hook_drush_command().
  */
-function drush_recipe_drush_command() {
+function drush_recipes_drush_command() {
   $items = array();
   $items['drush-list-recipes'] = array(
     'description' => dt('List the available recipes and where they are loaded from'),
@@ -46,7 +46,7 @@ function drush_recipe_drush_command() {
 /**
  * Implements hook_drush_help().
  */
-function drush_recipe_drush_help($section) {
+function drush_recipes_drush_help($section) {
   switch ($section) {
     case 'drush:drush-list-recipes':
       return dt('List the available recipes');
@@ -58,8 +58,8 @@ function drush_recipe_drush_help($section) {
 /**
  * Drush command callback for drush-list-recipes.
  */
-function drush_recipe_drush_list_recipes($list = array()) {
-  $recipes = _drush_recipe_system_rebuild_recipe_data();
+function drush_recipes_drush_list_recipes($list = array()) {
+  $recipes = _drush_recipes_system_rebuild_recipe_data();
   //@todo provide support for limiting to list of defined recipes
 
   // format recipe data as a table array
@@ -74,7 +74,7 @@ function drush_recipe_drush_list_recipes($list = array()) {
 /**
  * Drush command callback for drush-execute-recipes.
  */
-function drush_recipe_drush_execute_recipes($recipes = array()) {
+function drush_recipes_drush_execute_recipes($recipes = array()) {
   //@todo execute the recipies via dispatch or drush_invoke not sure which
   drush_dispatch($command, $arguments);
 }
@@ -85,19 +85,19 @@ function drush_recipe_drush_execute_recipes($recipes = array()) {
  * This is similar to how core handles modules / themes but forked to provide
  * support for modules, themes, and "cookbook" directory structures.
  */
-function _drush_recipe_system_rebuild_recipe_data() {
+function _drush_recipes_system_rebuild_recipe_data() {
   // Find recipes in modules directories
-  $recipes[] = _drush_recipe_drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.drecipe$/', 'modules', 'name', 0);
+  $recipes[] = _drush_recipes_drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.drecipe$/', 'modules', 'name', 0);
   // Find recipes in themes directories
-  $recipes[] = _drush_recipe_drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.drecipe$/', 'themes', 'name', 0);
+  $recipes[] = _drush_recipes_drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.drecipe$/', 'themes', 'name', 0);
   // find recipes in the cookbooks directory
-  $recipes[] = _drush_recipe_drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.drecipe$/', 'cookbooks', 'name', 0);
+  $recipes[] = _drush_recipes_drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.drecipe$/', 'cookbooks', 'name', 0);
 
   // Set defaults for recipe info.
   $defaults = array(
     'dependencies' => array(),
     'version' => "1.0",
-    'drush_recipe_api' => "1.0",
+    'drush_recipes_api' => "1.0",
     'files' => array(),
   );
 
@@ -128,7 +128,7 @@ function _drush_recipe_system_rebuild_recipe_data() {
  * @param  integer $min_depth [description]
  * @return [type]             [description]
  */
-function _drush_recipe_drupal_system_listing($mask, $directory, $key = 'name', $min_depth = 1) {
+function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', $min_depth = 1) {
   $config = conf_path();
 
   $searchdir = array($directory);
