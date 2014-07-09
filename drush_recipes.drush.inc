@@ -16,6 +16,9 @@
  * being in "override hell" with features and features_override.
  */
 
+define('DRUSH_RECIPE_EXTENSION', 'drecipe');
+define('DRUSH_RECIPES_API_VERSION', '1.0');
+
 /**
  * Implements hook_drush_command().
  */
@@ -23,10 +26,15 @@ function drush_recipes_drush_command() {
   $items = array();
   $items['drush-list-recipes'] = array(
     'description' => dt('List the available recipes and where they are loaded from'),
+    'arguments' => array(
+      'list' => dt("Recipies to list, comma separated"),
+    ),
     'aliases' => array('dlr'),
     'examples' => array(
       'drush drush-list-recipes' =>
         'A nicely printed listing of available recipes',
+      'drush dlr dr_security,dr_admin_update_status' =>
+        'Only list these two recipes',
     ),
   );
   $items['drush-execute-recipes'] = array(
@@ -36,8 +44,8 @@ function drush_recipes_drush_command() {
     ),
     'aliases' => array('der'),
     'examples' => array(
-      'drush drush-execute-recipes security-harden' =>
-        'Run the security-harden recipe',
+      'drush drush-execute-recipes dr_security' =>
+        'Run the dr_security recipe',
     ),
   );
   return $items;
@@ -58,63 +66,105 @@ function drush_recipes_drush_help($section) {
 /**
  * Drush command callback for drush-list-recipes.
  */
-function drush_recipes_drush_list_recipes($list = array()) {
+function drush_drush_recipes_drush_list_recipes($list = array()) {
   $recipes = _drush_recipes_system_rebuild_recipe_data();
+  $header = $rows = array();
   //@todo provide support for limiting to list of defined recipes
-
   // format recipe data as a table array
   foreach ($recipes as $recipe) {
-    $rows[] = $recipe;
+    $row = $recipe->drecipe;
+    // clean up data for output
+    $row['dependencies'] = implode(' ', $row['dependencies']);
+    $row['conflicts'] = implode(' ', $row['conflicts']);
+    $row['recipe'] = implode("\n", _drush_recipes_recipe_to_drush($row['recipe']));
+    $row['metadata'] = implode(' ', $row['metadata']);
+    $row['machine_name'] = $recipe->name;
+    $row['uri'] = $recipe->uri;
+    $rows[] = $row;
   }
-  // load the headers
-  $header = array_keys($recipes[0]);
-  drush_print_table($rows, $header);
+  array_unshift($rows, array_keys($row));
+  // pretty print the columns
+  $widths = array(
+    'uri' => '30',
+    'machine_name' => '8',
+    'name' => '10',
+    'conflicts' => '10',
+    'core' => '3',
+    'drush_recipes_api' => '3',
+    'metadata' => '30',
+    'recipe' => '40',
+    'dependencies' => '10',
+    'weight' => '2',
+  );
+  drush_print_table($rows, TRUE, $widths);
 }
 
 /**
  * Drush command callback for drush-execute-recipes.
  */
-function drush_recipes_drush_execute_recipes($recipes = array()) {
-  //@todo execute the recipies via dispatch or drush_invoke not sure which
-  drush_dispatch($command, $arguments);
+function drush_drush_recipes_drush_execute_recipes($list = array()) {
+  $recipes = _drush_recipes_system_rebuild_recipe_data();
+  $execute = array_intersect($recipes, $list);
+  // confirm execution as this can be a ton of drush commands
+  if (drush_confirm('Are you sure you want to execute these recipes? ' . implode(' ', array_keys($execute)))) {
+    //@todo execute the recipies via dispatch or drush_invoke not sure which
+    drush_dispatch($command, $arguments);
+  }
+  else {
+    drush_print('Operation aborted.');
+  }
 }
 
 /**
- * Helper to rebuild drecipe info data
+ * Helper to rebuild drecipe data
  *
  * This is similar to how core handles modules / themes but forked to provide
- * support for modules, themes, and "cookbook" directory structures.
+ * support for modules, themes, and "drecipes" directory structures.
  */
 function _drush_recipes_system_rebuild_recipe_data() {
-  // Find recipes in modules directories
-  $recipes[] = _drush_recipes_drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.drecipe$/', 'modules', 'name', 0);
-  // Find recipes in themes directories
-  $recipes[] = _drush_recipes_drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.drecipe$/', 'themes', 'name', 0);
-  // find recipes in the cookbooks directory
-  $recipes[] = _drush_recipes_drupal_system_listing('/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.drecipe$/', 'cookbooks', 'name', 0);
+  // @todo need to cache this for improved performance in discovery
+  $recipes = array();
+  // file preg_match pattern
+  $pattern = '/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.' . DRUSH_RECIPE_EXTENSION . '/';
+  // find recipes in drush specific locations
+  $locations = array(
+    'drush-system',
+    'drecipes',
+    'themes',
+    'modules'
+  );
+  // loop through each directory and find recipes
+  foreach ($locations as $directory) {
+    // find recipes in the drecipes directory
+    $recipes += _drush_recipes_drupal_system_listing($pattern, $directory, 'name', 0);
+  }
 
-  // Set defaults for recipe info.
+  // Set defaults for recipes.
   $defaults = array(
+    'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
+    'weight' => 0,
+    'core' => DRUPAL_CORE_COMPATIBILITY,
     'dependencies' => array(),
-    'version' => "1.0",
-    'drush_recipes_api' => "1.0",
-    'files' => array(),
+    'conflicts' => array(),
+    'recipe' => array(),
+    'metadata' => array(),
   );
 
-  // Read info files for each module/theme/cookbook.
+  // Read recipe files for each module/theme/drecipes.
   foreach ($recipes as $key => $recipe) {
 
     // Look for the info file.
-    $recipe->info = drupal_parse_info_file(dirname($recipe->uri) . '/' . $recipe->name . '.drecipe');
+    $recipe->drecipe = _drush_recipes_load_recipe(dirname($recipe->uri) . '/' . $recipe->name . '.'  . DRUSH_RECIPE_EXTENSION);
 
-    // Skip $recipes that don't provide info.
-    if (empty($recipe->info)) {
+    // Skip $recipes that don't provide info or are malformed.
+    if (empty($recipe->drecipe) || empty($recipe->drecipe['recipe'])) {
       unset($recipes[$key]);
       continue;
     }
 
     // Merge in defaults and save.
-    $recipes[$key]->info = $recipe->info + $defaults;
+    $recipes[$key]->drecipe = $recipe->drecipe + $defaults;
+    krsort($recipes[$key]->drecipe);
   }
 
   return $recipes;
@@ -122,47 +172,49 @@ function _drush_recipes_system_rebuild_recipe_data() {
 
 /**
  * Fork of drupal_system_listing to parse .drecipe files
- * @param  [type]  $mask      [description]
- * @param  [type]  $directory [description]
- * @param  string  $key       [description]
- * @param  integer $min_depth [description]
- * @return [type]             [description]
+ * @param  [type]  $mask      [preg_match for file pattern matching]
+ * @param  [type]  $directory [directory to search in]
+ * @param  string  $key       [file key]
+ * @param  integer $min_depth [depth into the directory to traverse]
+ * @return [array]             [an array of objects relating to recipe files]
  */
-function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', $min_depth = 1) {
+function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', $min_depth = 0) {
   $config = conf_path();
 
-  $searchdir = array($directory);
+  $searchdir = array();
   $files = array();
+  // drush based paths need to be discovered in a different manner
+  if ($directory == 'drush-system') {
+    $searchdir[] = drush_get_context('DRUSH_PER_USER_CONFIGURATION');
+    $searchdir[] = drush_get_context('DRUSH_SITE_WIDE_CONFIGURATION');
+    $searchdir[] = dirname(__FILE__) . '/..';
+  }
+  else {
+    $searchdir = array($directory);
+    $profiles = array();
+    $profile = drupal_get_profile();
+    // In case both profile directories contain the same extension, the actual
+    // profile always has precedence.
+    $profiles[] = $profile;
+    foreach ($profiles as $profile) {
+      if (file_exists("profiles/$profile/$directory")) {
+        $searchdir[] = "profiles/$profile/$directory";
+      }
+    }
 
-  // The 'profiles' directory contains pristine collections of modules and
-  // themes as organized by a distribution. It is pristine in the same way
-  // that /modules is pristine for core; users should avoid changing anything
-  // there in favor of sites/all or sites/<domain> directories.
-  $profiles = array();
-  $profile = drupal_get_profile();
-  // In case both profile directories contain the same extension, the actual
-  // profile always has precedence.
-  $profiles[] = $profile;
-  foreach ($profiles as $profile) {
-    if (file_exists("profiles/$profile/$directory")) {
-      $searchdir[] = "profiles/$profile/$directory";
+    // Always search sites/all/* as well as the global directories.
+    $searchdir[] = 'sites/all/' . $directory;
+
+    if (file_exists("$config/$directory")) {
+      $searchdir[] = "$config/$directory";
     }
   }
-
-  // Always search sites/all/* as well as the global directories.
-  $searchdir[] = 'sites/all/' . $directory;
-
-  if (file_exists("$config/$directory")) {
-    $searchdir[] = "$config/$directory";
-  }
-
   // Get current list of items.
   if (!function_exists('file_scan_directory')) {
     require_once DRUPAL_ROOT . '/includes/file.inc';
   }
   foreach ($searchdir as $dir) {
     $files_to_add = file_scan_directory($dir, $mask, array('key' => $key, 'min_depth' => $min_depth));
-
     // Duplicate files found in later search directories take precedence over
     // earlier ones, so we want them to overwrite keys in our resulting
     // $files array.
@@ -171,16 +223,15 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
     // core when new modules exist in core while older contrib modules with the
     // same name exist in a directory such as sites/all/modules/.
     foreach (array_intersect_key($files_to_add, $files) as $file_key => $file) {
-      // If it has no info file, then we just behave liberally and accept the
+      // If it has no drecipe file, then we just behave liberally and accept the
       // new resource on the list for merging.
-      if (file_exists($info_file = dirname($file->uri) . '/' . $file->name . '.drecipe')) {
+      if (file_exists($recipe_file = dirname($file->uri) . '/' . $file->name . '.drecipe')) {
         // Get the .drecipe file for the module or theme this file belongs to.
-        $info = drupal_parse_info_file($info_file);
-
+        $recipe = _drush_recipes_load_recipe($recipe_file);
         // If the module or theme is incompatible with Drupal core, remove it
         // from the array for the current search directory, so it is not
         // overwritten when merged with the $files array.
-        if (isset($info['core']) && $info['core'] != DRUPAL_CORE_COMPATIBILITY) {
+        if (isset($recipe['core']) && $recipe['core'] != DRUPAL_CORE_COMPATIBILITY) {
           unset($files_to_add[$file_key]);
         }
       }
@@ -191,4 +242,34 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
   return $files;
 }
 
+/**
+ * Helper function to load a file as json.
+ *
+ * @return array JSON decoded array.
+ */
+function _drush_recipes_load_recipe($path) {
+  $contents = file_get_contents($path);
+  // ensure utf8 to avoid issues
+  $contents = utf8_encode($contents);
+  $json = drupal_json_decode($contents);
 
+  return $json;
+}
+
+/**
+ * convert a recipe array to drush calls
+ * @param  [array] $recipe a structured array of drush calls in recipe format
+ * @return [array]         array of drush calls in order they should execute
+ */
+function _drush_recipes_recipe_to_drush($recipe) {
+  $drush = array();
+  foreach ($recipe as $call) {
+    if (is_array($call)) {
+      $drush[] = 'drush ' . implode(' ', $call);
+    }
+    else {
+      $drush[] = 'drush der'  . $call;
+    }
+  }
+  return $drush;
+}
