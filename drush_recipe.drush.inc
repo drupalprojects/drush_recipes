@@ -58,8 +58,10 @@ function drush_recipe_drush_help($section) {
 /**
  * Drush command callback for drush-list-recipes.
  */
-function drush_recipe_drush_list_recipes() {
+function drush_recipe_drush_list_recipes($list = array()) {
   $recipes = _drush_recipe_system_rebuild_recipe_data();
+  //@todo provide support for limiting to list of defined recipes
+
   // format recipe data as a table array
   foreach ($recipes as $recipe) {
     $rows[] = $recipe;
@@ -79,6 +81,9 @@ function drush_recipe_drush_execute_recipes($recipes = array()) {
 
 /**
  * Helper to rebuild drecipe info data
+ *
+ * This is similar to how core handles modules / themes but forked to provide
+ * support for modules, themes, and "cookbook" directory structures.
  */
 function _drush_recipe_system_rebuild_recipe_data() {
   // Find recipes in modules directories
@@ -91,7 +96,8 @@ function _drush_recipe_system_rebuild_recipe_data() {
   // Set defaults for recipe info.
   $defaults = array(
     'dependencies' => array(),
-    'version' => 1,
+    'version' => "1.0",
+    'drush_recipe_api' => "1.0",
     'files' => array(),
   );
 
