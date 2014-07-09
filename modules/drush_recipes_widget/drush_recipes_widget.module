@@ -1,0 +1,98 @@
+<?php
+// include drush functions instead of replicating the look up capabilities
+include_once '../../drush_recipes.drush.inc';
+
+/**
+ * @file
+ * Drush recipes widget primary module file.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function drush_recipes_widget_permission() {
+  return array(
+    'advanced drush recipes info' =>  array(
+      'title' => t('Display advanced drush recipe info'),
+      'description' => t('This will show more technical details about where recipes live on the server.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_elements().
+ */
+function drush_recipes_widget_element_info() {
+  // This is the definition for the new form API element.
+  return array(
+    'drush_recipes_widget' => array(
+      '#input' => TRUE,
+      '#theme' => 'drush_recipes_widget',
+    ),
+  );
+}
+
+/**
+ * Implements hook_theme().
+ */
+function drush_recipes_widget_theme() {
+  return array(
+    'drush_recipes_widget' => array(
+      'render element' => 'element',
+    ),
+  );
+}
+
+/**
+ * callback theme for the new form element
+ */
+function theme_drush_recipes_widget($variables) {
+  $element = $variables['element'];
+
+  $element['#id'] = isset($element['#id']) ? $element['#id'] : 'edit-' . rand(0, 9999);
+
+  $class = array('form-drush-recipes-widget');
+  $output = '';
+  if (isset($element['#field_prefix'])) {
+    $output .= '<span class="field-prefix">' . $element['#field_prefix'] . '</span> ';
+  }
+  // render the selection table based on spidering system for available items
+  $output .= '</div>';
+
+  if (isset($element['#field_suffix'])) {
+    $output .= '<span class="field-suffix">' . $element['#field_suffix'] . '</span>';
+  }
+  $element['#children'] = $output;
+  $element['#theme'] = 'form_element';
+  return drupal_render($element);
+}
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function drush_recipes_widget_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  $value = '';
+  if (isset($instance['default_value'][$delta]['drush_recipes_widget'])) {
+    $value = $instance['default_value'][$delta]['drush_recipes_widget'];
+  }
+  if (isset($items[$delta]['drush_recipes_widget'])) {
+    $value = $items[$delta]['drush_recipes_widget'];
+  }
+  // @todo add support for user_access('advanced drush recipes info')
+  // so that renders less technical information
+  $element += array(
+    '#delta' => $delta,
+  );
+  $element['drush_recipes_widget'] = array();
+  if ($instance['widget']['type'] == 'drush_recipes_widget') {
+    $element['drush_recipes_widget'] += array(
+      '#title' => $instance['label'],
+      '#type' => 'drush_recipes_widget',
+      '#recipe_type' => 'add-ons',
+      '#default_value' => $value,
+      '#cardinality' => $field['cardinality'],
+      '#description' => $element['#description'],
+    );
+  }
+  return $element;
+}
