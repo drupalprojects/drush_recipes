@@ -7,7 +7,7 @@
    */
 
 /**
- * Drush Recipe 1.0-draft
+ * Drush Recipe 1.0
  *
  * name - Human reable name of this recipe
  * drush_recipes_api - api version, 1.0 defaults
