@@ -289,6 +289,21 @@ function _drush_recipes_load_recipe($path, $format = 'yaml') {
   return FALSE;
 }
 
+/**
+ * Helper function to export to a certain format.
+ *
+ * @return array encoded contents for export.
+ */
+function _drush_recipes_encode($contents, $format = 'yaml') {
+  switch ($format) {
+    case 'yaml':
+      return yaml_emit($contents);
+    break;
+    case 'json':
+      return drupal_json_encode($contents);
+    break;
+  }
+  return FALSE;
 }
 
 /**
