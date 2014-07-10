@@ -1,7 +1,0 @@
-; $Id: drush_recipes_profiler_builder
-name = "Drush recipes for profiler builder"
-description = "Time to get extra lazy with configuration migration and recording."
-package = "Development"
-core = "7.x"
-configure = admin/config/development/profiler_builder/drush_recipes
-dependencies[] = profiler_builder_extras

@@ -1,6 +1,0 @@
-name = Drush recipes widget
-description = Provides front-end form element for integrating with drupal based control systems.
-core = 7.x
-
-files[] = drush_recipes_widget.install
-files[] = drush_recipes_widget.module
