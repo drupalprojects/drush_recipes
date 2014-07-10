@@ -34,26 +34,28 @@ function drush_recipes_profiler_builder_profiler_builder_build_files_alter(&$fil
  * Helper to build the file to deliver.
  * @return [string] [file contents for the recipe file]
  */
-function drush_recipes_profiler_builder_build_file() {
-  $output = '{
-  "name": "Security update status",
-  "drush_recipes_api": "1.0",
-  "dependencies": [
-    "update"
-  ],
-  "recipe": ';
+function drush_recipes_profiler_builder_build_file($format = 'yaml') {
+  // first part of the file
+  $output = array(
+    'name' => 'Security update status',
+    'drush_recipes_api' => '1.0',
+    'dependencies' => array('update'),
+  );
+  // load the queries from the temp directory
   $query_files = _profiler_builder_extras_load_query_files(FALSE);
   $calls = array();
+  // loop through the query files
   foreach ($query_files as $queries) {
     foreach ($queries as $query) {
       $call = array();
-      dpm($query);
-      // @todo test for the type of query that we can map to a drush function
+      // @todo test for the types of query that we can map to a drush function
+      // add update vars
       if (strpos($query['query'], 'variable SET value')) {
         $call[] = 'ev';
         $var = unserialize($query['args'][':db_update_placeholder_0']);
         $call[] = 'variable_set(\'' . $query['args'][':db_condition_placeholder_0'] . '\', ' . var_export($var, TRUE) . ')';
       }
+      // add insert vars
       elseif(strpos($query['query'], 'INTO variable (name, value)')) {
         $call[] = 'ev';
         $var = unserialize($query['args'][':db_insert_placeholder_1']);
@@ -64,17 +66,16 @@ function drush_recipes_profiler_builder_build_file() {
       }
     }
   }
+  // make sure this actually has a recipe to work
   if (!empty($calls)) {
-    $output .= json_encode($calls, JSON_PRETTY_PRINT);
+    $output['recipe'] = $calls;
   }
-  $output .= ',
-  "metadata": {
-    "description": "Report on the update status of known security related issues.",
-    "version": "1.0",
-    "author": "btopro"
-  }
-}
-';
-
-  return $output;
+  // add the metadata
+  $output['metadata'] = array(
+    'description' => 'Report on the update status of known security related issues.',
+    'version' => '1.0',
+    'author' => 'btopro'
+  );
+  // encode for export
+  return _drush_recipes_encode($output, $format);
 }
