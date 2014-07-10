@@ -270,17 +270,25 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
 }
 
 /**
- * Helper function to load a file as json.
+ * Helper function to load a file as json or yaml.
  *
- * @return array JSON decoded array.
+ * @return array decoded array.
  */
-function _drush_recipes_load_recipe($path) {
+function _drush_recipes_load_recipe($path, $format = 'yaml') {
   $contents = file_get_contents($path);
   // ensure utf8 to avoid issues
   $contents = utf8_encode($contents);
-  $json = drupal_json_decode($contents);
+  switch ($format) {
+    case 'yaml':
+      return yaml_parse($contents);
+    break;
+    case 'json':
+      return drupal_json_decode($contents);
+    break;
+  }
+  return FALSE;
+}
 
-  return $json;
 }
 
 /**
