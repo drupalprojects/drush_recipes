@@ -18,6 +18,7 @@
 
 define('DRUSH_RECIPE_EXTENSION', 'drecipe');
 define('DRUSH_RECIPES_API_VERSION', '1.0');
+define('DRUSH_RECIPES_FORMAT_DEFAULT', 'json');
 
 /**
  * Implements hook_drush_command().
@@ -274,7 +275,7 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
  *
  * @return array decoded array.
  */
-function _drush_recipes_load_recipe($path, $format = 'yaml') {
+function _drush_recipes_load_recipe($path, $format = DRUSH_RECIPES_FORMAT_DEFAULT) {
   $contents = file_get_contents($path);
   // ensure utf8 to avoid issues
   $contents = utf8_encode($contents);
@@ -294,7 +295,7 @@ function _drush_recipes_load_recipe($path, $format = 'yaml') {
  *
  * @return array encoded contents for export.
  */
-function _drush_recipes_encode($contents, $format = 'yaml') {
+function _drush_recipes_encode($contents, $format = DRUSH_RECIPES_FORMAT_DEFAULT) {
   switch ($format) {
     case 'yaml':
       return yaml_emit($contents);
