@@ -40,12 +40,14 @@ function drush_recipes_drush_command() {
   );
   $items['drush-execute-recipes'] = array(
     'description' => dt('execute a drush recipe'),
+  $items['drush-cook-recipes'] = array(
+    'description' => dt('"cook" up a drush recipe'),
     'arguments' => array(
       'recipes' => dt("List of recipes to execute, in order and comma separated"),
     ),
-    'aliases' => array('der'),
+    'aliases' => array('cook'),
     'examples' => array(
-      'drush drush-execute-recipes dr_security' =>
+      'drush drush-cook-recipes dr_security' =>
         'Run the dr_security recipe',
     ),
   );
@@ -59,7 +61,7 @@ function drush_recipes_drush_help($section) {
   switch ($section) {
     case 'drush:drush-list-recipes':
       return dt('List the available recipes');
-    case 'drush:drush-execute-recipes':
+    case 'drush:drush-cook-recipes':
       return dt('Perform a series of drush recipes');
   }
 }
@@ -101,9 +103,9 @@ function drush_drush_recipes_drush_list_recipes($list = array()) {
 }
 
 /**
- * Drush command callback for drush-execute-recipes.
+ * Drush command callback for drush-cook-recipes.
  */
-function drush_drush_recipes_drush_execute_recipes($list = '') {
+function drush_drush_recipes_drush_cook_recipes($list = '') {
   $commands = array();
   $list = explode(',', $list);
   if (empty($list)) {
