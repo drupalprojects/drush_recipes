@@ -37,7 +37,7 @@ function drush_recipes_drush_command() {
       'drush dlr dr_security,dr_admin_update_status' =>
         'Only list these two recipes',
     ),
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
   $items['drush-write-recipe'] = array(
     'description' => dt('Interactive prompt to create a new recipe'),
