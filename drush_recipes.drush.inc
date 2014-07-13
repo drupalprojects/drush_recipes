@@ -359,7 +359,7 @@ function _drush_recipes_load_recipe($path, $format = DRUSH_RECIPES_FORMAT_DEFAUL
       return yaml_parse($contents);
     break;
     case 'json':
-      return drupal_json_decode($contents);
+      return drush_json_decode($contents);
     break;
   }
   return FALSE;
@@ -376,7 +376,7 @@ function _drush_recipes_encode($contents, $format = DRUSH_RECIPES_FORMAT_DEFAULT
       return yaml_emit($contents);
     break;
     case 'json':
-      return drupal_json_encode($contents);
+      return drush_json_encode($contents);
     break;
   }
   return FALSE;
