@@ -129,6 +129,18 @@ function drush_drush_recipes_drush_write_recipe() {
     $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
     // try to write recipe to the file
     if (!file_put_contents("$location/$file", _drush_recipes_encode($recipe, $format))) {
+    // test directory exists / create it if we can
+    if (is_dir("$location") || mkdir("$location")) {
+      // try to write recipe to the file
+      if (!file_put_contents("$location/$file", _drush_recipes_encode($recipe, $format))) {
+        drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+      }
+      else {
+        // success! tell them how to use this
+        drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'cool!');
+      }
+    }
+    else {
       drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
     }
     drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'cool!');
