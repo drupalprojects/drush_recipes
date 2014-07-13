@@ -144,7 +144,7 @@ function drush_drush_recipes_drush_write_recipe() {
     // test directory exists / create it if we can
     if (is_dir("$location") || mkdir("$location")) {
       // try to write recipe to the file
-      $ouput = _drush_recipes_pretty_json(_drush_recipes_encode($recipe, $format));
+      $output = _drush_recipes_pretty_json(_drush_recipes_encode($recipe, $format));
       if (!file_put_contents("$location/$file", $output)) {
         drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
       }
