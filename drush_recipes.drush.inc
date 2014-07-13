@@ -38,8 +38,14 @@ function drush_recipes_drush_command() {
         'Only list these two recipes',
     ),
   );
-  $items['drush-execute-recipes'] = array(
-    'description' => dt('execute a drush recipe'),
+  $items['drush-write-recipe'] = array(
+    'description' => dt('Interactive prompt to create a new recipe'),
+    'aliases' => array('dwr'),
+    'examples' => array(
+      'drush dwr' =>
+        'An interactive prompt will follow',
+    ),
+  );
   $items['drush-cook-recipes'] = array(
     'description' => dt('"cook" up a drush recipe'),
     'arguments' => array(
@@ -63,7 +69,63 @@ function drush_recipes_drush_help($section) {
       return dt('List the available recipes');
     case 'drush:drush-cook-recipes':
       return dt('Perform a series of drush recipes');
+    case 'drush:drush-write-recipe':
+      return dt('Write a new recipe from commandline');
   }
+}
+
+/**
+ * Drush command callback for drush-write-recipe.
+ */
+function drush_drush_recipes_drush_write_recipe() {
+  $machine_name = drush_prompt(dt('Enter a machine name'));
+  $name = drush_prompt(dt('Enter recipe name'));
+  $description = drush_prompt(dt('Enter a description'));
+  $version = drush_prompt(dt('Enter a machine name'));
+  $options = array(
+    1 => 'add-on',
+    2 => 'routine',
+  );
+  $type = drush_choice($options, dt('What type of recipe is this?'));
+  $author = drush_prompt(dt('Recipe author'));
+  $item = '';
+  while ($item != 'x') {
+    $item = drush_prompt(dt('Write the full drush command you want to add (type x when done)'));
+    if ($item != 'x') {
+      $ary[] = $item;
+    }
+  }
+  $recipe = array(
+    'name' => $name,
+    'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
+    'weight' => 0,
+    'recipe' => $ary,
+    'metadata' => array(
+      'description' => $description,
+      'version' => $version,
+      'type' => $type,
+      'author' => $author,
+    )
+  );
+  $options = array(
+    0 => 'print',
+    1 => 'write to file',
+  );
+  if (drush_choice($options, dt('What type of recipe is this?')) == 1) {
+    $file = $machine_name . '.drecipe';
+    $location = drush_prompt(dt('Location to write recipe (blank for home directory)'));
+    if (empty($location)) {
+      $location = drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes';
+    }
+    if (!file_put_contents("$location/$file", $recipe)) {
+      drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+      $error = TRUE;
+    }
+  }
+  else {
+    drush_print(_drush_recipes_encode($recipe));
+  }
+  return TRUE;
 }
 
 /**
