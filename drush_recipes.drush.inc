@@ -83,7 +83,7 @@ function drush_drush_recipes_drush_write_recipe() {
   $machine_name = drush_prompt(dt('Enter a machine name'));
   $name = drush_prompt(dt('Enter recipe name'));
   // description and version are optional
-  $description = drush_prompt(dt('Enter a description'), '');
+  $description = drush_prompt(dt('Enter a description'), NULL, FALSE);
   $version = drush_prompt(dt('Enter version'), '1.0');
   $options = array(
     1 => 'add-on',
@@ -93,7 +93,7 @@ function drush_drush_recipes_drush_write_recipe() {
   $type = drush_choice($options, dt('What type of recipe is this?'));
   $type = $options[$type];
   // author is optional
-  $author = drush_prompt(dt('Recipe author'), '');
+  $author = drush_prompt(dt('Recipe author'), NULL, FALSE);
   $call = '';
   $items = array();
   while ($call != 'x') {
