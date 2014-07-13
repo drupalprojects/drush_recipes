@@ -89,23 +89,32 @@ function drush_drush_recipes_drush_write_recipe() {
     1 => 'add-on',
     2 => 'routine',
   );
-  // prompt for type choice then convert to choice name
+  // prompt for type choice
   $type = drush_choice($options, dt('What type of recipe is this?'));
   $type = $options[$type];
   // author is optional
   $author = drush_prompt(dt('Recipe author'), '');
-  $item = '';
-  while ($item != 'x') {
-    $item = drush_prompt(dt('Write the full drush command you want to add (type x when done)'));
-    if ($item != 'x') {
-      $ary[] = $item;
+  $call = '';
+  $items = array();
+  while ($call != 'x') {
+    $call = drush_prompt(dt('Write the full drush command you want to add (type x when done)'));
+    // if we didn't get told to stop
+    if ($call != 'x') {
+      // convert drush call into array using spaces
+      $item = explode(' ', $call);
+      // slide off first item, we don't care about drush
+      if ($item[0] == 'drush') {
+        array_shift($item);
+      }
+      // add to array
+      $items[] = $item;
     }
   }
   $recipe = array(
     'name' => $name,
     'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
     'weight' => 0,
-    'recipe' => $ary,
+    'recipe' => $items,
     'metadata' => array(
       'description' => $description,
       'version' => $version,
