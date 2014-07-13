@@ -116,13 +116,14 @@ function drush_drush_recipes_drush_write_recipe() {
     'weight' => 0,
     'recipe' => $items,
     'metadata' => array(
+      'type' => $type,
       'description' => $description,
       'version' => $version,
-      'type' => $type,
       'author' => $author,
     )
   );
-  $format = 'json';
+  // default format unless we have support for yaml
+  $format = DRUSH_RECIPES_FORMAT_DEFAULT;
   // test for yaml since we support that format too
   if (function_exists('yaml_emit')) {
     // allow for writing to file or screen
@@ -468,13 +469,15 @@ function _drush_recipes_pretty_json($json) {
     }
     elseif (!$in_quotes) {
       switch ($char) {
-        case '}': case ']':
+        case '}':
+        case ']':
           $level--;
           $ends_line_level = NULL;
           $new_line_level = $level;
         break;
 
-        case '{': case '[':
+        case '{':
+        case '[':
           $level++;
         case ',':
           $ends_line_level = $level;
@@ -484,21 +487,24 @@ function _drush_recipes_pretty_json($json) {
           $post = " ";
         break;
 
-        case " ": case "\t": case "\n": case "\r":
+        case " ":
+        case "\t":
+        case "\n":
+        case "\r":
           $char = "";
           $ends_line_level = $new_line_level;
           $new_line_level = NULL;
         break;
       }
     }
-    else if ( $char === '\\' ) {
+    elseif ($char === '\\') {
       $in_escape = true;
     }
 
-    if ($new_line_level !== NULL ) {
-        $result .= "\n".str_repeat( "\t", $new_line_level );
+    if ($new_line_level !== NULL) {
+        $result .= "\n".str_repeat("\t", $new_line_level);
     }
-    $result .= $char.$post;
+    $result .= $char . $post;
   }
 
   return $result;
