@@ -83,7 +83,7 @@ function drush_drush_recipes_drush_write_recipe() {
   $machine_name = drush_prompt(dt('Enter a machine name'));
   $name = drush_prompt(dt('Enter recipe name'));
   $description = drush_prompt(dt('Enter a description'));
-  $version = drush_prompt(dt('Enter a machine name'));
+  $version = drush_prompt(dt('Enter version'), '1.0');
   $options = array(
     1 => 'add-on',
     2 => 'routine',
@@ -109,23 +109,32 @@ function drush_drush_recipes_drush_write_recipe() {
       'author' => $author,
     )
   );
+  $format = 'json';
+  // test for yaml since we support that format too
+  if (funciton_exists('yaml_emit')) {
+    // allow for writing to file or screen
+    $options = array(
+      0 => 'json',
+      1 => 'yaml',
+    );
+    $format = drush_choice($options, dt('Which recipe encoding?'));
+  }
+  // allow for writing to file or screen
   $options = array(
     0 => 'print',
     1 => 'write to file',
   );
   if (drush_choice($options, dt('What type of recipe is this?')) == 1) {
     $file = $machine_name . '.drecipe';
-    $location = drush_prompt(dt('Location to write recipe (blank for home directory)'));
-    if (empty($location)) {
-      $location = drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes';
-    }
-    if (!file_put_contents("$location/$file", $recipe)) {
+    $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
+    // try to write recipe to the file
+    if (!file_put_contents("$location/$file", _drush_recipes_encode($recipe, $format))) {
       drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
-      $error = TRUE;
     }
+    drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'cool!');
   }
   else {
-    drush_print(_drush_recipes_encode($recipe));
+    drush_print(_drush_recipes_encode($recipe, $format));
   }
   return TRUE;
 }
