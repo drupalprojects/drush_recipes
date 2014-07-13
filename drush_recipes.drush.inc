@@ -400,7 +400,7 @@ function _drush_recipes_encode($contents, $format = DRUSH_RECIPES_FORMAT_DEFAULT
       return yaml_emit($contents);
     break;
     case 'json':
-      return drush_json_encode($contents);
+      return str_replace(array('<', '>', '&'), array('\u003c', '\u003e', '\u0026'), json_encode($contents, JSON_PRETTY_PRINT));
     break;
   }
   return FALSE;
