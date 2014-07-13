@@ -111,7 +111,7 @@ function drush_drush_recipes_drush_write_recipe() {
   );
   $format = 'json';
   // test for yaml since we support that format too
-  if (funciton_exists('yaml_emit')) {
+  if (function_exists('yaml_emit')) {
     // allow for writing to file or screen
     $options = array(
       0 => 'json',
