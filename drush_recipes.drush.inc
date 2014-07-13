@@ -37,6 +37,7 @@ function drush_recipes_drush_command() {
       'drush dlr dr_security,dr_admin_update_status' =>
         'Only list these two recipes',
     ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
   $items['drush-write-recipe'] = array(
     'description' => dt('Interactive prompt to create a new recipe'),
@@ -45,6 +46,7 @@ function drush_recipes_drush_command() {
       'drush dwr' =>
         'An interactive prompt will follow',
     ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
   $items['drush-cook-recipes'] = array(
     'description' => dt('"cook" up a drush recipe'),
