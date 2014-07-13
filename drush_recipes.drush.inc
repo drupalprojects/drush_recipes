@@ -140,7 +140,7 @@ function drush_drush_recipes_drush_write_recipe() {
       }
       else {
         // success! tell them how to use this
-        drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'cool!');
+        drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
       }
     }
     else {
