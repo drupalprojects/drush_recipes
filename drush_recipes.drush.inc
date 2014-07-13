@@ -7,7 +7,7 @@
  * This format allows you to call a series of drush calls to fire in
  * succession. This allows them to be packaged along with modules and
  * themes and is a complementary format to .make files. Where .make is
- * for describing how to make a site. .drecipe are for producing a
+ * for describing how to make a site. drush recipe files are for producing a
  * structured, reusable, desired result.
  *
  * Much of what you can do with drecipes can be done via features but
@@ -118,8 +118,8 @@ function drush_drush_recipes_drush_write_recipe() {
   if (function_exists('yaml_emit')) {
     // allow for writing to file or screen
     $options = array(
-      0 => 'json',
-      1 => 'yaml',
+      'json' => 'json',
+      'yaml' => 'yaml',
     );
     $format = drush_choice($options, dt('Which recipe encoding?'));
   }
@@ -128,11 +128,10 @@ function drush_drush_recipes_drush_write_recipe() {
     0 => 'print',
     1 => 'write to file',
   );
+  // start writing to file if they selected that
   if (drush_choice($options, dt('What type of recipe is this?')) == 1) {
-    $file = $machine_name . '.drecipe';
+    $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
     $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
-    // try to write recipe to the file
-    if (!file_put_contents("$location/$file", _drush_recipes_encode($recipe, $format))) {
     // test directory exists / create it if we can
     if (is_dir("$location") || mkdir("$location")) {
       // try to write recipe to the file
@@ -147,9 +146,9 @@ function drush_drush_recipes_drush_write_recipe() {
     else {
       drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
     }
-    drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'cool!');
   }
   else {
+    // just write it to the screen though this is mostly just for debugging
     drush_print(_drush_recipes_encode($recipe, $format));
   }
   return TRUE;
@@ -290,7 +289,7 @@ function _drush_recipes_system_rebuild_recipe_data() {
 }
 
 /**
- * Fork of drupal_system_listing to parse .drecipe files
+ * Fork of drupal_system_listing to parse files
  * @param  [type]  $mask      [preg_match for file pattern matching]
  * @param  [type]  $directory [directory to search in]
  * @param  string  $key       [file key]
@@ -344,8 +343,8 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
     foreach (array_intersect_key($files_to_add, $files) as $file_key => $file) {
       // If it has no drecipe file, then we just behave liberally and accept the
       // new resource on the list for merging.
-      if (file_exists($recipe_file = dirname($file->uri) . '/' . $file->name . '.drecipe')) {
-        // Get the .drecipe file for the module or theme this file belongs to.
+      if (file_exists($recipe_file = dirname($file->uri) . '/' . $file->name . '.' . DRUSH_RECIPE_EXTENSION)) {
+        // Get the .DRUSH_RECIPE_EXTENSION file for the module or theme this file belongs to.
         $recipe = _drush_recipes_load_recipe($recipe_file);
         // If the module or theme is incompatible with Drupal core, remove it
         // from the array for the current search directory, so it is not
@@ -426,7 +425,7 @@ function _drush_recipes_recipe_to_drush($recipe, $recurse = FALSE) {
         drush_print_r($call);
       }
       else {
-        $drush[] = 'drush der '  . str_replace('.drecipe', '', $call);
+        $drush[] = 'drush der '  . str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call);
       }
     }
   }
