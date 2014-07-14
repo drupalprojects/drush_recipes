@@ -283,33 +283,43 @@ function drush_drush_recipes_drush_cook_recipes($list = '') {
  * support for modules, themes, and "drecipes" directory structures.
  */
 function _drush_recipes_system_rebuild_recipe_data() {
-  // test for static cache of output
-  $recipes = &drupal_static(__FUNCTION__);
-  if (isset($recipes)) {
-    return $recipes;
+  // // we allow for this command to run regardless of site scope
+  $bootstrap = drush_get_context('DRUSH_BOOTSTRAP_PHASE');
+  if ($bootstrap != DRUSH_BOOTSTRAP_DRUSH) {
+    // test for static cache of output
+    $recipes = &drupal_static(__FUNCTION__);
+    if (isset($recipes)) {
+      return $recipes;
+    }
+    // find recipes in drush specific locations
+    $locations = array(
+      'drush-system',
+      'drecipes',
+      'themes',
+      'modules',
+    );
+    $function_pattern = DRUPAL_PHP_FUNCTION_PATTERN;
   }
-  // @todo need to cache this for improved performance in discovery
+  else {
+    // we can only check in the drush sub-system for recipes
+    $locations = array(
+      'drush-system',
+    );
+    $function_pattern = '[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*';
+  }
   $recipes = array();
   // file preg_match pattern
-  $pattern = '/^' . DRUPAL_PHP_FUNCTION_PATTERN . '\.' . DRUSH_RECIPE_EXTENSION . '/';
-  // find recipes in drush specific locations
-  $locations = array(
-    'drush-system',
-    'drecipes',
-    'themes',
-    'modules'
-  );
+  $pattern = '/^' . $function_pattern . '\.' . DRUSH_RECIPE_EXTENSION . '/';
   // loop through each directory and find recipes
   foreach ($locations as $directory) {
     // find recipes in the drecipes directory
     $recipes += _drush_recipes_drupal_system_listing($pattern, $directory, 'name', 0);
   }
-
   // Set defaults for recipes.
   $defaults = array(
     'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
     'weight' => 0,
-    'core' => DRUPAL_CORE_COMPATIBILITY,
+    'core' => DRUSH_RECIPES_CORE_COMPATIBILITY,
     'dependencies' => array(),
     'conflicts' => array(),
     'recipe' => array(),
@@ -318,21 +328,17 @@ function _drush_recipes_system_rebuild_recipe_data() {
 
   // Read recipe files for each module/theme/drecipes.
   foreach ($recipes as $key => $recipe) {
-
     // Look for the info file.
-    $recipe->drecipe = _drush_recipes_load_recipe(dirname($recipe->uri) . '/' . $recipe->name . '.'  . DRUSH_RECIPE_EXTENSION);
-
+    $recipe->drecipe = _drush_recipes_load_recipe(dirname($recipe->filename) . '/' . $recipe->basename);
     // Skip $recipes that don't provide info or are malformed.
     if (empty($recipe->drecipe) || empty($recipe->drecipe['recipe'])) {
       unset($recipes[$key]);
       continue;
     }
-
     // Merge in defaults and save.
     $recipes[$key]->drecipe = $recipe->drecipe + $defaults;
     krsort($recipes[$key]->drecipe);
   }
-
   return $recipes;
 }
 
@@ -345,8 +351,6 @@ function _drush_recipes_system_rebuild_recipe_data() {
  * @return [array]             [an array of objects relating to recipe files]
  */
 function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', $min_depth = 0) {
-  $config = conf_path();
-
   $searchdir = array();
   $files = array();
   // drush based paths need to be discovered in a different manner
@@ -370,17 +374,13 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
 
     // Always search sites/all/* as well as the global directories.
     $searchdir[] = 'sites/all/' . $directory;
-
+    $config = conf_path();
     if (file_exists("$config/$directory")) {
       $searchdir[] = "$config/$directory";
     }
   }
-  // Get current list of items.
-  if (!function_exists('file_scan_directory')) {
-    require_once DRUPAL_ROOT . '/includes/file.inc';
-  }
   foreach ($searchdir as $dir) {
-    $files_to_add = file_scan_directory($dir, $mask, array('key' => $key, 'min_depth' => $min_depth));
+    $files_to_add = drush_scan_directory($dir, $mask, array('.', '..', 'CVS'), 0, TRUE, $key, $min_depth);
     // Duplicate files found in later search directories take precedence over
     // earlier ones, so we want them to overwrite keys in our resulting
     // $files array.
@@ -391,13 +391,13 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
     foreach (array_intersect_key($files_to_add, $files) as $file_key => $file) {
       // If it has no drecipe file, then we just behave liberally and accept the
       // new resource on the list for merging.
-      if (file_exists($recipe_file = dirname($file->uri) . '/' . $file->name . '.' . DRUSH_RECIPE_EXTENSION)) {
+      if (file_exists($recipe_file = dirname($file->filename) . '/' . $file->basename)) {
         // Get the .DRUSH_RECIPE_EXTENSION file for the module or theme this file belongs to.
         $recipe = _drush_recipes_load_recipe($recipe_file);
         // If the module or theme is incompatible with Drupal core, remove it
         // from the array for the current search directory, so it is not
         // overwritten when merged with the $files array.
-        if (isset($recipe['core']) && $recipe['core'] != DRUPAL_CORE_COMPATIBILITY) {
+        if (isset($recipe['core']) && $recipe['core'] != DRUSH_RECIPES_CORE_COMPATIBILITY) {
           unset($files_to_add[$file_key]);
         }
       }
