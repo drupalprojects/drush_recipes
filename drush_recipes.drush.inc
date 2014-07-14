@@ -200,7 +200,7 @@ function drush_drush_recipes_drush_list_recipes($list = '') {
     if ($more) {
       $row['dependencies'] = implode(' ', $row['dependencies']);
       $row['conflicts'] = implode(' ', $row['conflicts']);
-      $row['recipe'] = implode("\n", _drush_recipes_recipe_to_drush($row['recipe']));
+      $row['recipe'] = implode("\n", _drush_recipes_recipe_to_drush($row['recipe']), 0, FALSE, FALSE);
       $row['metadata'] = implode(' ', $row['metadata']);
     }
     else {
@@ -262,9 +262,8 @@ function drush_drush_recipes_drush_cook_recipes($list = '') {
   // This should only be used when all defined at once, cookbook style recipes
   // need to treat them sequentially.
   foreach ($cook as $recipe) {
-    $commands += _drush_recipes_recipe_to_drush($recipe->drecipe['recipe'], TRUE);
+    $commands += _drush_recipes_recipe_to_drush($recipe->drecipe['recipe']);
   }
-  drush_print(implode("\n", $commands));
   // confirm cooking as this can be a ton of drush commands
   if (drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
     foreach ($commands as $command) {
@@ -456,14 +455,21 @@ function _drush_recipes_encode($contents, $format = DRUSH_RECIPES_FORMAT_DEFAULT
 
 /**
  * convert a recipe array to drush calls
- * @param  [array] $recipe a structured array of drush calls in recipe format
- * @return [array]         array of drush calls in order they should execute
+ * @param  array $recipe  a structured array of drush calls in recipe format
+ * @param  bool  $recurse if the functionc all should be recursive
+ * @param  bool  $list    if calls should be printed as they are found
+ * @return array $drush   array of drush calls in order they should execute
  */
-function _drush_recipes_recipe_to_drush($recipe, $recurse = FALSE) {
+function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $list = TRUE) {
   $drush = array();
   foreach ($recipe as $call) {
+    // drush commands are listed as array'ed elements
     if (is_array($call)) {
       $drush[] = 'drush ' . implode(' ', $call);
+      // see if we should print nicely formatted debug stuff
+      if ($list) {
+        drush_print(_drush_recipes_indent($indent) . 'drush ' . implode(' ', $call));
+      }
     }
     else {
       // we have a recipe nested, lets look up how to build it and recurse
@@ -485,7 +491,6 @@ function _drush_recipes_recipe_to_drush($recipe, $recurse = FALSE) {
             continue;
           }
         }
-        drush_print_r($call);
       }
       else {
         $drush[] = 'drush der '  . str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call);
@@ -495,6 +500,18 @@ function _drush_recipes_recipe_to_drush($recipe, $recurse = FALSE) {
   return $drush;
 }
 
+/**
+ * Helper for indenting
+ */
+function _drush_recipes_indent($count) {
+  $output = '';
+  $counter = 0;
+  while ($counter < $count) {
+    $output .= '  ';
+    $counter++;
+  }
+  return $output;
+}
 /**
  * Print json nicely regardless of PHP version
  */
