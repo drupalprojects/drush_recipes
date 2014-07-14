@@ -245,24 +245,25 @@ function drush_drush_recipes_drush_cook_recipes($list = '') {
   $commands = array();
   $list = explode(',', $list);
   if (empty($list)) {
-    drush_log('You must specify recipes to execute! try running drush dlr for a listing of commands', 'error');
+    drush_log('You must specify recipes to cook! try running drush dlr for a listing of commands', 'error');
     return FALSE;
   }
   $recipes = _drush_recipes_system_rebuild_recipe_data();
-  $execute = array_intersect_key($recipes, array_flip($list));
+  $cook = array_intersect_key($recipes, array_flip($list));
   // @todo utilize the recipe weight to ensure correct weighted firing order
   // This should only be used when all defined at once, cookbook style recipes
   // need to treat them sequentially.
-  foreach ($execute as $recipe) {
+  foreach ($cook as $recipe) {
     $commands += _drush_recipes_recipe_to_drush($recipe->drecipe['recipe'], TRUE);
   }
   drush_print(implode("\n", $commands));
-  // confirm execution as this can be a ton of drush commands
-  if (drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($execute)))) {
+  // confirm cooking as this can be a ton of drush commands
+  if (drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
     foreach ($commands as $command) {
       $command .= ' --y';
-      //@todo execute the recipies via dispatch or drush_invoke not sure which
-      drush_log('About to execute: ' . $command, 'ok');
+      //@todo cook the recipies via drush_invoke not sure which
+      drush_log('Adding ingredient: ' . $command, 'ok');
+      // this is the simple method for running
       drush_shell_exec($command);
       $shell_output = drush_shell_exec_output();
       foreach ($shell_output as $shell) {
