@@ -472,10 +472,16 @@ function _drush_recipes_recipe_to_drush($recipe, $recurse = FALSE) {
         // pull data for full object, fortunately it's static cached
         $recipes = _drush_recipes_system_rebuild_recipe_data();
         // loop through items to cross reference with filename
-        foreach ($recipes as $item) {
+        foreach ($recipes as $machine_name => $item) {
           // if call matches filename we recurse through that filename's recipe
-          if ($item->filename == $call) {
-            $drush += _drush_recipes_recipe_to_drush($item->drecipe['recipe']);
+          if ($machine_name == str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call)) {
+            if ($list) {
+              drush_print(_drush_recipes_indent($indent) . '<' . $machine_name . '>');
+            }
+            $drush += _drush_recipes_recipe_to_drush($item->drecipe['recipe'], $indent+1);
+            if ($list) {
+              drush_print(_drush_recipes_indent($indent) . '</' . $machine_name . ">\n");
+            }
             continue;
           }
         }
