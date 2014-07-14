@@ -465,7 +465,7 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
   // catch to make sure we don't fall into a deep infinite loop of recursive calls
   if ($indent > DRUSH_RECIPES_MAX_RECURSION) {
     // tell people in the event they triggered this and are confused
-    drush_log(dt('There is most likely a problem with your logic for this recipe series. It was about to make a call 5 levels down in its referenced call logic, and prevented this from happening to avoid an infinite loop. If you know what you are doing, increase DRUSH_RECIPES_MAX_RECURSION. If you think the current value is too low, please file an issue in the issue queue.'));
+    drush_log(dt('There is most likely a problem with your logic for this recipe series. It was about to make a call 5 levels down in its referenced call logic, and prevented this from happening to avoid an infinite loop. If you know what you are doing, increase DRUSH_RECIPES_MAX_RECURSION. If you think the current value is too low, please file an issue in the issue queue.'), 'error');
     return array();
   }
   $drush = array();
