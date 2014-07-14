@@ -107,9 +107,17 @@ function drush_drush_recipes_drush_write_recipe() {
     if ($call != 'x') {
       // convert drush call into array using spaces
       $item = explode(' ', $call);
-      // slide off first item, we don't care about drush
-      if ($item[0] == 'drush') {
+      // this means its a reference to an another drecipe
+      if (count($item) == 1 && strpos($item[0], '.' . DRUSH_RECIPE_EXTENSION)) {
+        $item = (string)$item[0];
+      }
+      elseif ($item[0] == 'drush') {
         array_shift($item);
+      }
+      else {
+        // ignore input
+        drush_log(dt('Invalid command'), 'warning');
+        continue;
       }
       // add to array
       $items[] = $item;
