@@ -173,36 +173,68 @@ function drush_drush_recipes_drush_write_recipe() {
 /**
  * Drush command callback for drush-list-recipes.
  */
-function drush_drush_recipes_drush_list_recipes($list = array()) {
+function drush_drush_recipes_drush_list_recipes($list = '') {
   $recipes = _drush_recipes_system_rebuild_recipe_data();
+  $list = (!empty($list) ? explode(',', $list) : '');
+  $rows = array();
+  // get option flag for more detail
+  $more = drush_get_option('more-detail');
+  // make sure we find any
+  if (empty($recipes)) {
+    drush_log(dt('You have no recipes! Run `drush dwr` to create a new one!'), 'error');
+    return FALSE;
+  }
   $header = $rows = array();
-  //@todo provide support for limiting to list of defined recipes
   // format recipe data as a table array
-  foreach ($recipes as $recipe) {
+  foreach ($recipes as $machine_name => $recipe) {
     $row = $recipe->drecipe;
     // clean up data for output
-    $row['dependencies'] = implode(' ', $row['dependencies']);
-    $row['conflicts'] = implode(' ', $row['conflicts']);
-    $row['recipe'] = implode("\n", _drush_recipes_recipe_to_drush($row['recipe']));
-    $row['metadata'] = implode(' ', $row['metadata']);
-    $row['machine_name'] = $recipe->name;
-    $row['uri'] = $recipe->uri;
+    if ($more) {
+      $row['dependencies'] = implode(' ', $row['dependencies']);
+      $row['conflicts'] = implode(' ', $row['conflicts']);
+      $row['recipe'] = implode("\n", _drush_recipes_recipe_to_drush($row['recipe']));
+      $row['metadata'] = implode(' ', $row['metadata']);
+    }
+    else {
+      unset($row['dependencies']);
+      unset($row['conflicts']);
+      unset($row['recipe']);
+      unset($row['metadata']);
+      unset($row['core']);
+      unset($row['drush_recipes_api']);
+      unset($row['weight']);
+    }
+    $row['machine_name'] = $machine_name;
+    $row['uri'] = $recipe->filename;
+    // allow for limiting what they care about from commandline
+    if (!empty($list) && !in_array($machine_name, $list)) {
+      continue;
+    }
     $rows[] = $row;
+  }
+  if (empty($rows)) {
+    drush_log(dt('No results matched the list you wanted to see'), 'error');
+    return FALSE;
   }
   array_unshift($rows, array_keys($row));
   // pretty print the columns
-  $widths = array(
-    'uri' => '30',
-    'machine_name' => '8',
-    'name' => '10',
-    'conflicts' => '10',
-    'core' => '3',
-    'drush_recipes_api' => '3',
-    'metadata' => '30',
-    'recipe' => '40',
-    'dependencies' => '10',
-    'weight' => '2',
-  );
+  if ($more) {
+    $widths = array(
+      'uri' => '30',
+      'machine_name' => '8',
+      'name' => '10',
+      'conflicts' => '10',
+      'core' => '3',
+      'drush_recipes_api' => '3',
+      'metadata' => '30',
+      'recipe' => '40',
+      'dependencies' => '10',
+      'weight' => '2',
+    );
+  }
+  else {
+    $widths = array();
+  }
   drush_print_table($rows, TRUE, $widths);
 }
 
