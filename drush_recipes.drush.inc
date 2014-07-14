@@ -18,6 +18,7 @@
 
 define('DRUSH_RECIPE_EXTENSION', 'drecipe');
 define('DRUSH_RECIPES_API_VERSION', '1.0');
+define('DRUSH_RECIPES_CORE_COMPATIBILITY', '7.x');
 define('DRUSH_RECIPES_FORMAT_DEFAULT', 'json');
 
 /**
@@ -28,7 +29,10 @@ function drush_recipes_drush_command() {
   $items['drush-list-recipes'] = array(
     'description' => dt('List the available recipes and where they are loaded from'),
     'arguments' => array(
-      'list' => dt("Recipies to list, comma separated"),
+      'list' => dt('Recipies to list, comma separated'),
+    ),
+    'options' => array(
+      'more-detail' => dt('Show all info available'),
     ),
     'aliases' => array('dlr'),
     'examples' => array(
@@ -37,7 +41,7 @@ function drush_recipes_drush_command() {
       'drush dlr dr_security,dr_admin_update_status' =>
         'Only list these two recipes',
     ),
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+    'bootstrap' => DRUSH_BOOTSTRAP_MAX,
   );
   $items['drush-write-recipe'] = array(
     'description' => dt('Interactive prompt to create a new recipe'),
@@ -58,6 +62,7 @@ function drush_recipes_drush_command() {
       'drush drush-cook-recipes dr_security' =>
         'Run the dr_security recipe',
     ),
+    'bootstrap' => DRUSH_BOOTSTRAP_MAX,
   );
   return $items;
 }
