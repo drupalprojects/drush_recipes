@@ -7,7 +7,7 @@
     "paranoia"
   ],
   "recipe": [
-    "dr_admin_update_status.drecipe",
+    "dr_update_status.drecipe",
     [
       "vset",
       "user_register",
