@@ -2,10 +2,6 @@
 	"name": "Safe upgrade",
 	"drush_recipes_api": "1.0",
 	"weight": 0,
-	"dependencies": [
-		"registry_rebuild": "7.x-2.2",
-		"drush_ecl": "7.x-1.2"
-	 ],
 	"recipe": [
 		[
 			"rr",
