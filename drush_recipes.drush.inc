@@ -148,11 +148,11 @@ function drush_drush_recipes_drush_write_recipe() {
   while (!$format = drush_choice($formats, dt('Which recipe encoding?')))
   // allow for writing to file or screen
   $options = array(
-    0 => 'print',
-    1 => 'write to file',
+    1 => 'print',
+    2 => 'write to file',
   );
   // start writing to file if they selected that
-  if (drush_choice($options, dt('What type of recipe is this?')) == 1) {
+  if (drush_choice($options, dt('What type of recipe is this?')) == 2) {
     $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
     $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
     // test directory exists / create it if we can
@@ -161,6 +161,7 @@ function drush_drush_recipes_drush_write_recipe() {
       $output = _drush_recipes_pretty_json(_drush_recipes_encode($recipe, $format));
       if (!file_put_contents("$location/$file", $output)) {
         drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+        drush_print(_drush_recipes_encode($recipe, $format));
       }
       else {
         // success! tell them how to use this
@@ -169,6 +170,7 @@ function drush_drush_recipes_drush_write_recipe() {
     }
     else {
       drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+      drush_print(_drush_recipes_encode($recipe, $format));
     }
   }
   else {
