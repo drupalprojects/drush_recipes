@@ -19,7 +19,6 @@
 define('DRUSH_RECIPE_EXTENSION', 'drecipe');
 define('DRUSH_RECIPES_API_VERSION', '1.0');
 define('DRUSH_RECIPES_CORE_COMPATIBILITY', '7.x');
-define('DRUSH_RECIPES_FORMAT_DEFAULT', 'json');
 define('DRUSH_RECIPES_MAX_RECURSION', 4);
 
 /**
@@ -136,17 +135,17 @@ function drush_drush_recipes_drush_write_recipe() {
       'author' => $author,
     )
   );
-  // default format unless we have support for yaml
-  $format = DRUSH_RECIPES_FORMAT_DEFAULT;
+
+  $formats = array(
+    'json' => 'json',
+    'xml' => 'xml'
+  );
   // test for yaml since we support that format too
   if (function_exists('yaml_emit')) {
     // allow for writing to file or screen
-    $options = array(
-      'json' => 'json',
-      'yaml' => 'yaml',
-    );
-    $format = drush_choice($options, dt('Which recipe encoding?'));
+    $formats['yaml'] = 'yaml';
   }
+  while (!$format = drush_choice($formats, dt('Which recipe encoding?')))
   // allow for writing to file or screen
   $options = array(
     0 => 'print',
@@ -418,23 +417,34 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
 }
 
 /**
- * Helper function to load a file as json or yaml.
+ * Helper function to load a file.
  *
- * @return array decoded array.
+ * @return array decoded array from one of the formats listed.
  */
-function _drush_recipes_load_recipe($path, $format = DRUSH_RECIPES_FORMAT_DEFAULT) {
+function _drush_recipes_load_recipe($path) {
   $contents = file_get_contents($path);
   // ensure utf8 to avoid issues
   $contents = utf8_encode($contents);
-  switch ($format) {
-    case 'yaml':
-      return yaml_parse($contents);
-    break;
-    case 'json':
-      return drush_json_decode($contents);
-    break;
+  // to avoid issues w/ format extension names we trickle down based on support
+  $recipe = @drush_json_decode($contents);
+  // if empty, lets try a yaml parser
+  if (empty($recipe)) {
+    // @todo add support for XML cause... why not
+    // test for yaml capabilities
+    if (function_exists('yaml_parse')) {
+      $recipe = @yaml_parse($contents);
+    }
   }
-  return FALSE;
+  // lets try xml as a last ditch
+  if (empty($recipe)) {
+    $recipe = @simplexml_load_string($contents);
+  }
+  else {
+    // something went wrong, we couldn't read the file
+    drush_log(dt('There is a problem with the recipe located at @file', array('@file' => $path)), 'error');
+    return FALSE;
+  }
+  return $recipe;
 }
 
 /**
@@ -444,11 +454,18 @@ function _drush_recipes_load_recipe($path, $format = DRUSH_RECIPES_FORMAT_DEFAUL
  */
 function _drush_recipes_encode($contents, $format = DRUSH_RECIPES_FORMAT_DEFAULT) {
   switch ($format) {
-    case 'yaml':
-      return yaml_emit($contents);
-    break;
     case 'json':
       return drush_json_encode($contents);
+    break;
+    case 'yaml':
+      if (function_exists('yaml_emit')) {
+        return yaml_emit($contents);
+      }
+    break;
+    case 'xml':
+      $xml = new SimpleXMLElement('<drush_recipe/>');
+      array_walk_recursive($contents, array($xml, 'addChild'));
+      return $xml->asXML();
     break;
   }
   return FALSE;
