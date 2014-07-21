@@ -446,20 +446,18 @@ function _drush_recipes_load_recipe($path) {
   // ensure utf8 to avoid issues
   $contents = utf8_encode($contents);
   // to avoid issues w/ format extension names we trickle down based on support
-  $recipe = @drush_json_decode($contents);
+  $recipe = drush_json_decode($contents);
   // if empty, lets try a yaml parser
-  if (empty($recipe)) {
-    // @todo add support for XML cause... why not
+  if (empty($recipe) && function_exists('yaml_parse')) {
     // test for yaml capabilities
-    if (function_exists('yaml_parse')) {
-      $recipe = @yaml_parse($contents);
-    }
+    $recipe = yaml_parse($contents);
   }
   // lets try xml as a last ditch
   if (empty($recipe)) {
-    $recipe = @simplexml_load_string($contents);
+    $recipe = simplexml_load_string($contents);
   }
-  else {
+  // if still empty now we have a REAL problem
+  if (empty($recipe)) {
     // something went wrong, we couldn't read the file
     drush_log(dt('There is a problem with the recipe located at @file', array('@file' => $path)), 'error');
     return FALSE;
