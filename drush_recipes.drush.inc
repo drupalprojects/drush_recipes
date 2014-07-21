@@ -96,7 +96,7 @@ function drush_drush_recipes_drush_write_recipe() {
     2 => 'routine',
   );
   // prompt for type choice
-  $type = drush_choice($options, dt('What type of recipe is this?'));
+  while (!$type = drush_choice($options, dt('What type of recipe is this?')))
   $type = $options[$type];
   // author is optional
   $author = drush_prompt(dt('Recipe author'), NULL, FALSE);
