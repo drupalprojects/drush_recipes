@@ -20,6 +20,11 @@ define('DRUSH_RECIPE_EXTENSION', 'drecipe');
 define('DRUSH_RECIPES_API_VERSION', '1.0');
 define('DRUSH_RECIPES_CORE_COMPATIBILITY', '7.x');
 define('DRUSH_RECIPES_MAX_RECURSION', 4);
+// listing of the types of drush recipe formats we support
+define('DRUSH_RECIPES_FORMAT_REFERENCE', 'reference');
+define('DRUSH_RECIPES_FORMAT_TARGET', 'target');
+define('DRUSH_RECIPES_FORMAT_CONDITIONAL', 'conditional');
+define('DRUSH_RECIPES_FORMAT_ARGUMENT', 'argument');
 
 /**
  * Implements hook_drush_command().
@@ -506,38 +511,57 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
   }
   $drush = array();
   foreach ($recipe as $call) {
-    // drush commands are listed as array'ed elements
-    if (is_array($call)) {
-      $drush[] = 'drush ' . implode(' ', $call);
-      // see if we should print nicely formatted debug stuff
-      if ($list) {
-        drush_print(_drush_recipes_indent($indent) . 'drush ' . implode(' ', $call));
-      }
-    }
-    else {
-      // we have a recipe nested, lets look up how to build it and recurse
-      // but only if told to do so, may just want to reference the command
-      if ($recurse) {
-        // pull data for full object, fortunately it's static cached
-        $recipes = _drush_recipes_system_rebuild_recipe_data();
-        // loop through items to cross reference with filename
-        foreach ($recipes as $machine_name => $item) {
-          // if call matches filename we recurse through that filename's recipe
-          if ($machine_name == str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call)) {
-            if ($list) {
-              drush_print(_drush_recipes_indent($indent) . '<' . $machine_name . '>');
+    // @todo this is where we need to check for our 4 styles of format
+    switch ($format = _drush_recipes_detect_format($call)) {
+      // a recipe with a reference to another recipe
+      case DRUSH_RECIPES_FORMAT_REFERENCE:
+        // we have a recipe nested, lets look up how to build it and recurse
+        // but only if told to do so, may just want to reference the command
+        if ($recurse) {
+          // pull data for full object, fortunately it's static cached
+          $recipes = _drush_recipes_system_rebuild_recipe_data();
+          // loop through items to cross reference with filename
+          foreach ($recipes as $machine_name => $item) {
+            // if call matches filename we recurse through that filename's recipe
+            if ($machine_name == str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call)) {
+              if ($list) {
+                drush_print(_drush_recipes_indent($indent) . '<' . $machine_name . '>');
+              }
+              $drush += _drush_recipes_recipe_to_drush($item->drecipe['recipe'], $indent+1);
+              if ($list) {
+                drush_print(_drush_recipes_indent($indent) . '</' . $machine_name . ">\n");
+              }
+              continue;
             }
-            $drush += _drush_recipes_recipe_to_drush($item->drecipe['recipe'], $indent+1);
-            if ($list) {
-              drush_print(_drush_recipes_indent($indent) . '</' . $machine_name . ">\n");
-            }
-            continue;
           }
         }
-      }
-      else {
-        $drush[] = 'drush der '  . str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call);
-      }
+        else {
+          $drush[] = 'drush der '  . str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call);
+        }
+      break;
+      case DRUSH_RECIPES_FORMAT_TARGET:
+        // @todo support target based call structure
+        /*$drush[] = $call;
+        // see if we should print nicely formatted debug stuff
+        if ($list) {
+          $print = 'drush ' . $call['target'] . implode(' ', $call['arguments']);
+          if (isset($call['options']) && !empty($call['options'])) {
+            // make sure first option gets the dashes it needs
+            $print .= '--' . implode(' --', $call['options']);
+          }
+          drush_print(_drush_recipes_indent($indent) . $print);
+        }*/
+      break;
+      case DRUSH_RECIPES_FORMAT_CONDITIONAL:
+      // @todo support conditional based drecipe call structure
+      break;
+      case DRUSH_RECIPES_FORMAT_ARGUMENT:
+        $drush[] = 'drush ' . implode(' ', $call);
+        // see if we should print nicely formatted debug stuff
+        if ($list) {
+          drush_print(_drush_recipes_indent($indent) . 'drush ' . implode(' ', $call));
+        }
+      break;
     }
   }
   return $drush;
@@ -620,4 +644,23 @@ function _drush_recipes_pretty_json($json) {
   }
 
   return $result;
+}
+
+/**
+ * Detect the format of the call.
+ */
+function _drush_recipes_detect_format($call) {
+  // hardest to easiest with exception of it not being an array
+  if (!is_array($call)) {
+    return DRUSH_RECIPES_FORMAT_REFERENCE;
+  }
+  // test for most complex
+  if (isset($call[DRUSH_RECIPES_FORMAT_TARGET])) {
+    return DRUSH_RECIPES_FORMAT_TARGET;
+  }
+  else if (isset($call[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
+    return DRUSH_RECIPES_FORMAT_CONDITIONAL;
+  }
+  // fallback case is that it's an array of arguments
+  return DRUSH_RECIPES_FORMAT_ARGUMENT;
 }
