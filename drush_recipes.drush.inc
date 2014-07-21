@@ -482,6 +482,7 @@ function _drush_recipes_encode($contents, $format = DRUSH_RECIPES_FORMAT_DEFAULT
     break;
     case 'xml':
       $xml = new SimpleXMLElement('<drush_recipe/>');
+      // @todo something has to happen with array_flip($contents)
       array_walk_recursive($contents, array($xml, 'addChild'));
       return $xml->asXML();
     break;
