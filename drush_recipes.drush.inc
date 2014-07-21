@@ -95,12 +95,12 @@ function drush_drush_recipes_drush_write_recipe() {
     return drush_drush_recipes_drush_write_recipe();
   }
   else {
+    $original_machine = $machine_name;
     $machine_name = strtolower($machine_name);
     // check for spaces and replace with underscores.
     $machine_name = preg_replace("/[^a-z0-9_]/" , '_', $machine_name);
     // verify that user wants the converted string; if not start over.
-    $result = drush_confirm("Is $machine_name the machine name you want?");
-    if (!$result) {
+    if (($original_machine != $machine_name) && !drush_confirm(dt('Is @machine the machine name you want?', array('@machine' => $machine_name)))) {
       return drush_drush_recipes_drush_write_recipe();
     }
   }
