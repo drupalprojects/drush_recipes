@@ -108,13 +108,13 @@ function drush_drush_recipes_drush_write_recipe() {
   // description and version are optional
   $description = drush_prompt(dt('Enter a description'), NULL, FALSE);
   $version = drush_prompt(dt('Enter version'), '1.0');
-  $options = array(
+  $recipe_types = array(
     1 => 'add-on',
     2 => 'routine',
   );
   // prompt for type choice
-  while (!$type = drush_choice($options, dt('What type of recipe is this?')))
-  $type = $options[$type];
+  while (!$type = drush_choice($recipe_types, dt('What type of recipe is this?')))
+  $type = $recipe_types[$type];
   // author is optional
   $author = drush_prompt(dt('Recipe author'), NULL, FALSE);
   $call = '';
@@ -163,14 +163,14 @@ function drush_drush_recipes_drush_write_recipe() {
     // allow for writing to file or screen
     $formats['yaml'] = 'yaml';
   }
-  while (!$format = drush_choice($formats, dt('Which recipe encoding?')))
+  while (!$format = drush_choice($formats, dt('Which recipe encoding?')));
   // allow for writing to file or screen
-  $options = array(
+  $output_locations = array(
     1 => 'print',
     2 => 'write to file',
   );
   // start writing to file if they selected that
-  if (drush_choice($options, dt('What type of recipe is this?')) == 2) {
+  if (drush_choice($output_locations, dt('What type of recipe is this?')) == 2) {
     $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
     $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
     // test directory exists / create it if we can
