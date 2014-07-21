@@ -86,6 +86,24 @@ function drush_recipes_drush_help($section) {
  */
 function drush_drush_recipes_drush_write_recipe() {
   $machine_name = drush_prompt(dt('Enter a machine name'));
+  //get the first character of machine name and check if it is a number
+  $first_char_machine_name = substr($machine_name, 0, 1);
+  if (!ctype_alpha($first_char_machine_name)){
+    //echo that input cannot start with a number.
+    drush_log('Syntax Error: Please enter a machine name that does not start with a number.', 'error');
+    // we return to effectively start a recursive loop but cancel out this one.
+    return drush_drush_recipes_drush_write_recipe();
+  }
+  else {
+    $machine_name = strtolower($machine_name);
+    // check for spaces and replace with underscores.
+    $machine_name = preg_replace("/[^a-z0-9_]/" , '_', $machine_name);
+    // verify that user wants the converted string; if not start over.
+    $result = drush_confirm("Is $machine_name the machine name you want?");
+    if (!$result) {
+      return drush_drush_recipes_drush_write_recipe();
+    }
+  }
   $name = drush_prompt(dt('Enter recipe name'));
   // description and version are optional
   $description = drush_prompt(dt('Enter a description'), NULL, FALSE);
