@@ -487,12 +487,34 @@ function _drush_recipes_encode($contents, $format = DRUSH_RECIPES_FORMAT_DEFAULT
     break;
     case 'xml':
       $xml = new SimpleXMLElement('<drush_recipe/>');
-      // @todo something has to happen with array_flip($contents)
-      array_walk_recursive($contents, array($xml, 'addChild'));
+      _drush_recipes_array_to_xml($contents, $xml);
       return $xml->asXML();
     break;
   }
   return FALSE;
+}
+
+/**
+ * Helper function to convert array to XML
+ * @param  array $array any old array
+ * @param  object $xml   SimpleXMLElement object type
+ * @return object        returns a populated XML object with values from array
+ */
+function _drush_recipes_array_to_xml($array, &$xml) {
+  foreach($array as $key => $value) {
+    if(is_array($value)) {
+      if(!is_numeric($key)){
+        $subnode = $xml->addChild("$key");
+        _drush_recipes_array_to_xml($value, $subnode);
+      }
+      else {
+        _drush_recipes_array_to_xml($value, $xml);
+      }
+    }
+    else {
+        $xml->addChild("$key","$value");
+    }
+  }
 }
 
 /**
