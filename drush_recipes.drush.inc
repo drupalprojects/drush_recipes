@@ -292,14 +292,28 @@ function drush_drush_recipes_drush_cook_recipes($list = '') {
   // confirm cooking as this can be a ton of drush commands
   if (drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
     foreach ($commands as $command) {
-      $command .= ' --y';
-      //@todo cook the recipies via drush_invoke not sure which
       drush_log('Adding ingredient: ' . $command, 'ok');
-      // this is the simple method for running
-      drush_shell_exec($command);
-      $shell_output = drush_shell_exec_output();
-      foreach ($shell_output as $shell) {
-        drush_print($shell);
+      if (is_array($command)) {
+        // test for most complex
+        if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
+          // @todo cook the recipies via drush_invoke
+        }
+        else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
+          // force a selection to be made
+          while (!$which = drush_choice($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]))
+          $which = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which];
+          // recursive since they just selected a reference
+          drush_drush_recipes_drush_cook_recipes($which);
+        }
+      }
+      else {
+        $command .= ' --y';
+        // this is the simple method for running when non interactive
+        drush_shell_exec($command);
+        $shell_output = drush_shell_exec_output();
+        foreach ($shell_output as $shell) {
+          drush_print($shell);
+        }
       }
       drush_log($command . ' complete!', 'ok');
     }
@@ -533,7 +547,6 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
   }
   $drush = array();
   foreach ($recipe as $call) {
-    // @todo this is where we need to check for our 4 styles of format
     switch ($format = _drush_recipes_detect_format($call)) {
       // a recipe with a reference to another recipe
       case DRUSH_RECIPES_FORMAT_REFERENCE:
@@ -562,8 +575,7 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
         }
       break;
       case DRUSH_RECIPES_FORMAT_TARGET:
-        // @todo support target based call structure
-        /*$drush[] = $call;
+        $drush[] = $call;
         // see if we should print nicely formatted debug stuff
         if ($list) {
           $print = 'drush ' . $call['target'] . implode(' ', $call['arguments']);
@@ -572,10 +584,14 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
             $print .= '--' . implode(' --', $call['options']);
           }
           drush_print(_drush_recipes_indent($indent) . $print);
-        }*/
+        }
       break;
       case DRUSH_RECIPES_FORMAT_CONDITIONAL:
-      // @todo support conditional based drecipe call structure
+      //  conditional is most complex so processing has to happen at run time
+        $drush[] = $call;
+        if ($list) {
+          drush_print(_drush_recipes_indent($indent) . 'CONDITIONAL: ' . implode(' OR ', $call[DRUSH_RECIPES_FORMAT_CONDITIONAL]));
+        }
       break;
       case DRUSH_RECIPES_FORMAT_ARGUMENT:
         $drush[] = 'drush ' . implode(' ', $call);
