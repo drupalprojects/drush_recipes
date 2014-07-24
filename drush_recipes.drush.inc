@@ -128,6 +128,9 @@ function drush_drush_recipes_drush_write_recipe() {
     $call = drush_prompt(dt('Write the full drush command you want to add (type x when done)'));
     // if we didn't get told to stop
     if ($call != 'x') {
+      // check for conditional vs complex so we can write these in via the write
+      // command
+      // @todo support complex writing via fake commands to switch writing style
       // convert drush call into array using spaces
       $item = explode(' ', $call);
       // this means its a reference to an another drecipe
