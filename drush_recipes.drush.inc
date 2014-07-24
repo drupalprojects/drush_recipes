@@ -24,6 +24,7 @@ define('DRUSH_RECIPES_MAX_RECURSION', 4);
 define('DRUSH_RECIPES_FORMAT_REFERENCE', 'reference');
 define('DRUSH_RECIPES_FORMAT_TARGET', 'target');
 define('DRUSH_RECIPES_FORMAT_CONDITIONAL', 'conditional');
+define('DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION', 'prompt');
 define('DRUSH_RECIPES_FORMAT_ARGUMENT', 'argument');
 
 /**
@@ -125,7 +126,7 @@ function drush_drush_recipes_drush_write_recipe() {
   $call = '';
   $items = array();
   while ($call != 'x') {
-    $call = drush_prompt(dt('Write the full drush command you want to add (type x when done)'));
+    $call = drush_prompt(dt('Write the full drush command you want to add (c for conditional, x when done)'));
     // if we didn't get told to stop
     if ($call != 'x') {
       // check for conditional vs complex so we can write these in via the write
@@ -137,11 +138,44 @@ function drush_drush_recipes_drush_write_recipe() {
       if (count($item) == 1 && strpos($item[0], '.' . DRUSH_RECIPE_EXTENSION)) {
         $item = (string)$item[0];
       }
+      // support referencing make files which we short hand to a drush call
+      elseif (count($item) == 1 && strpos($item[0], '.make')) {
+        $item = array(
+          0 => 'make',
+          1 => str_replace('.make', '', $item[0]),
+        );
+      }
+      // support conditionals
+      elseif (count($item) == 1 && strpos($item[0], 'c') === 0) {
+        $conditions = array();
+        while ($condinput != 'x') {
+          $condinput = drush_prompt(dt('CONDITIONAL: Add a drush recipe to add to this conditional (type x when done)'));
+          // if we didn't get told to stop and we got a recipe looking entry
+          if ($condinput != 'x' && strpos($condinput, '.' . DRUSH_RECIPE_EXTENSION)) {
+            $conditions[] = (string)$condinput;
+          }
+          elseif ($condinput == 'x') {
+            drush_log(dt('Conditional complete'), 'ok');
+          }
+          else {
+            // ignore input as it wasn't something we understood
+            drush_log(dt('Invalid conditional, recipe references only'), 'warning');
+            continue;
+          }
+        }
+        // account for no input in case of a mistake
+        if (empty($conditions)) {
+          continue;
+        }
+        // add grouping of conditions to the array
+        $item = array(DRUSH_RECIPES_FORMAT_CONDITIONAL => $conditions);
+      }
+      // easiest case
       elseif ($item[0] == 'drush') {
         array_shift($item);
       }
       else {
-        // ignore input
+        // ignore input as it wasn't something we understood
         drush_log(dt('Invalid command'), 'warning');
         continue;
       }
@@ -184,7 +218,7 @@ function drush_drush_recipes_drush_write_recipe() {
     // test directory exists / create it if we can
     if (is_dir("$location") || mkdir("$location")) {
       // try to write recipe to the file
-      $output = _drush_recipes_pretty_json(_drush_recipes_encode($recipe, $format));
+      $output = _drush_recipes_encode($recipe, $format);
       if (!file_put_contents("$location/$file", $output)) {
         drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
         drush_print(_drush_recipes_encode($recipe, $format));
@@ -495,7 +529,7 @@ function _drush_recipes_load_recipe($path) {
 function _drush_recipes_encode($contents, $format = DRUSH_RECIPES_FORMAT_DEFAULT) {
   switch ($format) {
     case 'json':
-      return drush_json_encode($contents);
+      return _drush_recipes_pretty_json(drush_json_encode($contents));
     break;
     case 'yaml':
       if (function_exists('yaml_emit')) {
@@ -590,7 +624,7 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
         }
       break;
       case DRUSH_RECIPES_FORMAT_CONDITIONAL:
-      //  conditional is most complex so processing has to happen at run time
+        //  conditional is most complex so processing has to happen at run time
         $drush[] = $call;
         if ($list) {
           drush_print(_drush_recipes_indent($indent) . 'CONDITIONAL: ' . implode(' OR ', $call[DRUSH_RECIPES_FORMAT_CONDITIONAL]));
