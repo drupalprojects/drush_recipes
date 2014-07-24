@@ -168,7 +168,10 @@ function drush_drush_recipes_drush_write_recipe() {
           continue;
         }
         // add grouping of conditions to the array
-        $item = array(DRUSH_RECIPES_FORMAT_CONDITIONAL => $conditions);
+        $item = array(
+          DRUSH_RECIPES_FORMAT_CONDITIONAL => $conditions,
+          DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION => drush_prompt(dt("What question are you asking for this conditional?"), 'Which would you like to run?'),
+        );
       }
       // easiest case
       elseif ($item[0] == 'drush') {
