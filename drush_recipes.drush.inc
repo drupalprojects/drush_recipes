@@ -131,8 +131,6 @@ function drush_drush_recipes_drush_write_recipe() {
     if ($call != 'x') {
       // check for conditional vs complex so we can write these in via the write
       // command
-      // @todo support complex writing via fake commands to switch writing style
-      // convert drush call into array using spaces
       $item = explode(' ', $call);
       // this means its a reference to an another drecipe
       if (count($item) == 1 && strpos($item[0], '.' . DRUSH_RECIPE_EXTENSION)) {
@@ -334,9 +332,9 @@ function drush_drush_recipes_drush_cook_recipes($list = '') {
     foreach ($commands as $command) {
       drush_log('Adding ingredient: ' . $command, 'ok');
       if (is_array($command)) {
-        // test for most complex
+        // test for complex process invoking
         if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
-          // @todo cook the recipies via drush_invoke
+          drush_invoke_process($command[DRUSH_RECIPES_FORMAT_TARGET], $command['command'], $command['args'], $command['options']);
         }
         else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
           // force a selection to be made
