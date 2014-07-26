@@ -527,7 +527,7 @@ function _drush_recipes_load_recipe($path) {
  *
  * @return array encoded contents for export.
  */
-function _drush_recipes_encode($contents, $format = DRUSH_RECIPES_FORMAT_DEFAULT) {
+function _drush_recipes_encode($contents, $format = 'json') {
   switch ($format) {
     case 'json':
       return _drush_recipes_pretty_json(drush_json_encode($contents));
