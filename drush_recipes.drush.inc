@@ -334,10 +334,10 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   // confirm cooking as this can be a ton of drush commands
   if ($recurse || drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
     foreach ($commands as $command) {
-      drush_log('Adding ingredient: ' . $command, 'ok');
       if (is_array($command)) {
         // test for complex process invoking
         if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
+          drush_log('Adding ingredient: ' . $command['command'], 'ok');
           drush_invoke_process($command[DRUSH_RECIPES_FORMAT_TARGET], $command['command'], $command['args'], $command['options']);
         }
         else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
@@ -350,11 +350,13 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
           while (!$which = drush_choice($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]));
           // load up which based on array position selected from conditional
           $which = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which];
+          drush_log('Adding ingredient: ' . $which, 'ok');
           // recursive since they just selected a reference
           drush_drush_recipes_drush_cook_recipes(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $which), TRUE);
         }
       }
       else {
+        drush_log('Adding ingredient: ' . $command, 'ok');
         $command .= ' --y';
         // this is the simple method for running when non interactive
         drush_shell_exec($command);
