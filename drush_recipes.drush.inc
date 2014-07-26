@@ -337,11 +337,17 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
           drush_invoke_process($command[DRUSH_RECIPES_FORMAT_TARGET], $command['command'], $command['args'], $command['options']);
         }
         else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
+          // shift array keys forward if 0 is set to avoid issues
+          if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][0])) {
+            array_unshift($command[DRUSH_RECIPES_FORMAT_CONDITIONAL],'');
+            unset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][0]);
+          }
           // force a selection to be made
-          while (!$which = drush_choice($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]))
+          while (!$which = drush_choice($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]));
+          // load up which based on array position selected from conditional
           $which = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which];
           // recursive since they just selected a reference
-          drush_drush_recipes_drush_cook_recipes($which);
+          drush_drush_recipes_drush_cook_recipes(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $which), TRUE);
         }
       }
       else {
