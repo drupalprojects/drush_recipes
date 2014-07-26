@@ -312,7 +312,7 @@ function drush_drush_recipes_drush_list_recipes($list = '') {
 /**
  * Drush command callback for drush-cook-recipes.
  */
-function drush_drush_recipes_drush_cook_recipes($list = '') {
+function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   $commands = array();
   $list = explode(',', $list);
   if (empty($list)) {
@@ -328,7 +328,7 @@ function drush_drush_recipes_drush_cook_recipes($list = '') {
     $commands += _drush_recipes_recipe_to_drush($recipe->drecipe['recipe']);
   }
   // confirm cooking as this can be a ton of drush commands
-  if (drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
+  if ($recurse || drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
     foreach ($commands as $command) {
       drush_log('Adding ingredient: ' . $command, 'ok');
       if (is_array($command)) {
