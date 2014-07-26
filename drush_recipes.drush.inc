@@ -146,11 +146,15 @@ function drush_drush_recipes_drush_write_recipe() {
       // support conditionals
       elseif (count($item) == 1 && strpos($item[0], 'c') === 0) {
         $conditions = array();
+        $condkey = 0;
         while ($condinput != 'x') {
           $condinput = drush_prompt(dt('CONDITIONAL: Add a drush recipe to add to this conditional (type x when done)'));
           // if we didn't get told to stop and we got a recipe looking entry
           if ($condinput != 'x' && strpos($condinput, '.' . DRUSH_RECIPE_EXTENSION)) {
-            $conditions[] = (string)$condinput;
+            // this helps ensure conditions are written starting with key 1
+            // can help avoid conflicts with drush options later on
+            $condkey++;
+            $conditions[$condkey] = (string)$condinput;
           }
           elseif ($condinput == 'x') {
             drush_log(dt('Conditional complete'), 'ok');
