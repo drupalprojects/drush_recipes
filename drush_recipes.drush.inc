@@ -58,6 +58,15 @@ function drush_recipes_drush_command() {
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
+  $items['drush-diff-targets-recipe'] = array(
+    'description' => dt('Analyze two targets and create a recipe to chart a course from one to another. Great for figuring out what a client changed after a distro was installed.'),
+    'aliases' => array('ddt'),
+    'examples' => array(
+      'drush ddt @target1 @target2' =>
+        'Analysis will occur of how target2 is different then target1 and a suggested recipe to follow how to get target1 to be target2 will be generated (either to the screen or written to a file.',
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+  );
   $items['drush-cook-recipes'] = array(
     'description' => dt('"cook" up a drush recipe'),
     'arguments' => array(
@@ -82,6 +91,8 @@ function drush_recipes_drush_help($section) {
       return dt('List the available recipes');
     case 'drush:drush-cook-recipes':
       return dt('Perform a series of drush recipes');
+    case 'drush:drush-diff-targets-recipe':
+      return dt('Create a recipe to calculate the diff between systems.');
     case 'drush:drush-write-recipe':
       return dt('Write a new recipe from commandline');
   }
