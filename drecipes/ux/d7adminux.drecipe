@@ -1,0 +1,27 @@
+{
+	"name": "D7 Admin UX",
+	"drush_recipes_api": "1.0",
+	"weight": 0,
+	"recipe": [
+		[
+			"dl",
+			"admin"
+		],
+		[
+			"dl",
+			"admin_menu"
+		],
+		"crufty_core_off.drecipe",
+		[
+			"en",
+			"admin,admin_menu,admin_menu_toolbar",
+			"--y"
+		]
+	],
+	"metadata": {
+		"type": 2,
+		"description": "Solid D7 Admin defaults",
+		"version": "1.0",
+		"author": "btopro"
+	}
+}
