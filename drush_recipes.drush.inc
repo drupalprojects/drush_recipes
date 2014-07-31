@@ -278,7 +278,7 @@ function drush_drush_recipes_drush_list_recipes($list = '') {
     if ($more) {
       $row['dependencies'] = implode(' ', $row['dependencies']);
       $row['conflicts'] = implode(' ', $row['conflicts']);
-      $row['recipe'] = implode("\n", _drush_recipes_recipe_to_drush($row['recipe']), 0, FALSE, FALSE);
+      $row['recipe'] = implode("\n", _drush_recipes_recipe_to_drush($row), 0, FALSE, FALSE);
       $row['metadata'] = implode(' ', $row['metadata']);
     }
     else {
@@ -602,7 +602,7 @@ function _drush_recipes_array_to_xml($array, &$xml) {
 
 /**
  * convert a recipe array to drush calls
- * @param  array $recipe  a structured array of drush calls in recipe format
+ * @param  array $recipe  a recipe file fully loaded with recipe array
  * @param  bool  $recurse if the functionc all should be recursive
  * @param  bool  $list    if calls should be printed as they are found
  * @return array $drush   array of drush calls in order they should execute
@@ -615,7 +615,7 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
     return array();
   }
   $drush = array();
-  foreach ($recipe as $call) {
+  foreach ($recipe->drecipe['recipe'] as $call) {
     switch ($format = _drush_recipes_detect_format($call)) {
       // a recipe with a reference to another recipe
       case DRUSH_RECIPES_FORMAT_REFERENCE:
@@ -631,7 +631,7 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
               if ($list) {
                 drush_print(_drush_recipes_indent($indent) . '<' . $machine_name . '>');
               }
-              $drush += _drush_recipes_recipe_to_drush($item->drecipe['recipe'], $indent+1);
+              $drush += _drush_recipes_recipe_to_drush($item, $indent+1);
               if ($list) {
                 drush_print(_drush_recipes_indent($indent) . '</' . $machine_name . ">\n");
               }
