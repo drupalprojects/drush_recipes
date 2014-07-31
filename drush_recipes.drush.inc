@@ -20,6 +20,7 @@ define('DRUSH_RECIPE_EXTENSION', 'drecipe');
 define('DRUSH_RECIPES_API_VERSION', '1.0');
 define('DRUSH_RECIPES_CORE_COMPATIBILITY', '7.x');
 define('DRUSH_RECIPES_MAX_RECURSION', 5);
+define('DRUSH_RECIPES_DEFAULT_URL', 'http://drush.recipes/node.json?type=drush_recipe');
 // listing of the types of drush recipe formats we support
 define('DRUSH_RECIPES_FORMAT_REFERENCE', 'reference');
 define('DRUSH_RECIPES_FORMAT_TARGET', 'target');
@@ -48,6 +49,18 @@ function drush_recipes_drush_command() {
         'Only list these two recipes',
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_MAX,
+  );
+  $items['drush-recipes-url'] = array(
+    'description' => dt('Import recipes from a remote service like drush.recipes'),
+    'arguments' => array(
+      'url' => dt('A URL to return results from.'),
+    ),
+    'aliases' => array('drurl'),
+    'examples' => array(
+      'drush drurl ' . DRUSH_RECIPES_DEFAULT_URL . '&uid=10' =>
+        'Display a list of recipes for user 10 from the drush.recipes service.',
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
   $items['drush-write-recipe'] = array(
     'description' => dt('Interactive prompt to create a new recipe'),
@@ -89,12 +102,53 @@ function drush_recipes_drush_help($section) {
   switch ($section) {
     case 'drush:drush-list-recipes':
       return dt('List the available recipes');
-    case 'drush:drush-cook-recipes':
-      return dt('Perform a series of drush recipes');
-    case 'drush:drush-diff-targets-recipe':
-      return dt('Create a recipe to calculate the diff between systems.');
+    case 'drush:drush-recipes-url':
+      return dt('Sync recipes from a remote service');
     case 'drush:drush-write-recipe':
       return dt('Write a new recipe from commandline');
+    case 'drush:drush-diff-targets-recipe':
+      return dt('Create a recipe to calculate the diff between systems.');
+    case 'drush:drush-cook-recipes':
+      return dt('Perform a series of drush recipes');
+  }
+}
+
+/**
+ * Drush command callback for drush-recipes-url.
+ */
+function drush_drush_recipes_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL) {
+  /* //pseudo code for now til we build the service out
+  $response = drush_http_request($url);
+  if (!$response->error) {
+    $recipes = drush_json_decode($response->data);
+    $location = drush_prompt(dt('Location to write recipes'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes/service-drush.recipes/');
+    // test directory exists / create it if we can
+    if (is_dir("$location") || mkdir("$location")) {
+      foreach ($recipes as $recipe) {
+        // should list the recipe so we know what we are saving from remote
+        // @todo probably need to wrap recipe in a file wrapper / object
+        _drush_recipes_recipe_to_drush($recipe);
+        if (drush_confirm("Are you sure you want to save the above recipe? (this will overwrite your local copy in that directory if its allowed)")) {
+          // start writing to file if they selected that
+          $file = $recipe->name . '.' . DRUSH_RECIPE_EXTENSION;
+          // try to write recipe to the file
+          $output = _drush_recipes_encode($recipe, 'json');
+          if (!file_put_contents("$location/$file", $output)) {
+            drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+          }
+          else {
+            // success! tell them how to use this
+            drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
+          }
+        }
+      }
+    }
+    else {
+      drush_log(dt("Unable to write folder @location", array('@location' => $location)), 'error');
+    }
+  }
+  else {
+    drush_log(dt("Unable to connect to @url", array('@url' => $url)), 'error');
   }
 }
 
