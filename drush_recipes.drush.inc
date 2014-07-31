@@ -336,9 +336,14 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   }
   $recipes = _drush_recipes_system_rebuild_recipe_data();
   $cook = array_intersect_key($recipes, array_flip($list));
-  // @todo utilize the recipe weight to ensure correct weighted firing order
-  // This should only be used when all defined at once, cookbook style recipes
-  // need to treat them sequentially.
+  // ensure that they are listed based on weight to form a block chain
+  foreach ($cook as $key => $recipe) {
+    $weight[$key]  = $recipe->drecipe['weight'];
+  }
+  // Sort the data with weight descending
+  array_multisort($weight, SORT_ASC, $cook);
+  // convert cooking list into commands to execute
+  drush_print("\n" . dt('Ingredients list to cook: @list', array('@list' => implode(',', $list))));
   foreach ($cook as $recipe) {
     $commands += _drush_recipes_recipe_to_drush($recipe->drecipe['recipe']);
   }
