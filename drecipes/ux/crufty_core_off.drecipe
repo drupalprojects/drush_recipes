@@ -5,13 +5,11 @@
 	"recipe": [
 		[
 			"dis",
-			"toolbar,shortcut,overlay",
-			"--y"
+			"toolbar,shortcut,overlay"
 		],
 		[
 			"pm-uninstall",
-			"toolbar,shortcut,overlay",
-			"--y"
+			"toolbar,shortcut,overlay"
 		]
 	],
 	"metadata": {
