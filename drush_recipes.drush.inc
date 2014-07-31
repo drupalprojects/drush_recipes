@@ -245,7 +245,7 @@ function drush_drush_recipes_drush_write_recipe() {
       }
     }
     else {
-      drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+      drush_log(dt("Unable to write folder @location", array('@location' => $location)), 'error');
       drush_print(_drush_recipes_encode($recipe, $format));
     }
   }
