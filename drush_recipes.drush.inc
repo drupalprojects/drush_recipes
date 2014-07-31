@@ -20,7 +20,7 @@ define('DRUSH_RECIPE_EXTENSION', 'drecipe');
 define('DRUSH_RECIPES_API_VERSION', '1.0');
 define('DRUSH_RECIPES_CORE_COMPATIBILITY', '7.x');
 define('DRUSH_RECIPES_MAX_RECURSION', 5);
-define('DRUSH_RECIPES_DEFAULT_URL', 'http://drush.recipes/node.json?type=drush_recipe');
+define('DRUSH_RECIPES_DEFAULT_URL', 'http://drush.recipes/recipes.xml');
 // listing of the types of drush recipe formats we support
 define('DRUSH_RECIPES_FORMAT_REFERENCE', 'reference');
 define('DRUSH_RECIPES_FORMAT_TARGET', 'target');
@@ -130,7 +130,8 @@ function drush_drush_recipes_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL)
   /* //pseudo code for now til we build the service out
   $response = drush_http_request($url);
   if (!$response->error) {
-    $recipes = drush_json_decode($response->data);
+    $contents = utf8_encode($response->data);
+    $recipes = simplexml_load_string($contents);
     $location = drush_prompt(dt('Location to write recipes'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes/service-drush.recipes/');
     // test directory exists / create it if we can
     if (is_dir("$location") || mkdir("$location")) {
