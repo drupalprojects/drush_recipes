@@ -336,12 +336,35 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   }
   $recipes = _drush_recipes_system_rebuild_recipe_data();
   $cook = array_intersect_key($recipes, array_flip($list));
+  $dependencies = $conflicts = array();
   // ensure that they are listed based on weight to form a block chain
   foreach ($cook as $key => $recipe) {
     $weight[$key]  = $recipe->drecipe['weight'];
+    array_merge($dependencies,(isset($recipe->drecipe['dependencies']) ? $recipe->drecipe['dependencies'] : array()));
+    array_merge($conflicts,(isset($recipe->drecipe['conflicts']) ? $recipe->drecipe['conflicts'] : array()));
   }
   // Sort the data with weight descending
   array_multisort($weight, SORT_ASC, $cook);
+  // test for conflicts
+  foreach ($conflicts as $conflict) {
+    foreach ($cook as $recipe) {
+      if ($recipe->name == $conflict) {
+        drush_log(dt('Recipes could not be run, @name is listed as a known conflict of one of the included recipes. Review the conflict and try again.', array('@name' => $recipe->name)), 'error');
+        drush_user_abort();
+      }
+    }
+  }
+  // ensure dependencies are met
+  /*foreach ($dependencies as $dependency) {
+    // @todo test for listed dependencies using drush functions somehow
+    // dependencies can be both drupal modules as well as drush plugins
+    // in the case of drush RR registry_rebuild is required
+    if () {
+      drush_log(dt('Recipes could not be run, @name is listed as a known conflict of one of the included recipes. Review the conflict and try again.', array('@name' => $recipe->name)), 'error');
+      drush_user_abort();
+    }
+  }*/
+
   // convert cooking list into commands to execute
   drush_print("\n" . dt('Ingredients list to cook: @list', array('@list' => implode(',', $list))));
   $recipe_list = array();
