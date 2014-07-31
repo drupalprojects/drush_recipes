@@ -19,7 +19,7 @@
 define('DRUSH_RECIPE_EXTENSION', 'drecipe');
 define('DRUSH_RECIPES_API_VERSION', '1.0');
 define('DRUSH_RECIPES_CORE_COMPATIBILITY', '7.x');
-define('DRUSH_RECIPES_MAX_RECURSION', 4);
+define('DRUSH_RECIPES_MAX_RECURSION', 5);
 // listing of the types of drush recipe formats we support
 define('DRUSH_RECIPES_FORMAT_REFERENCE', 'reference');
 define('DRUSH_RECIPES_FORMAT_TARGET', 'target');
@@ -607,12 +607,15 @@ function _drush_recipes_array_to_xml($array, &$xml) {
  * @param  bool  $list    if calls should be printed as they are found
  * @return array $drush   array of drush calls in order they should execute
  */
-function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $list = TRUE) {
+function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $list = TRUE) {
   // catch to make sure we don't fall into a deep infinite loop of recursive calls
   if ($indent > DRUSH_RECIPES_MAX_RECURSION) {
     // tell people in the event they triggered this and are confused
     drush_log(dt('There is most likely a problem with your logic for this recipe series. It was about to make a call 5 levels down in its referenced call logic, and prevented this from happening to avoid an infinite loop. If you know what you are doing, increase DRUSH_RECIPES_MAX_RECURSION. If you think the current value is too low, please file an issue in the issue queue.'), 'error');
     return array();
+  }
+  if ($list && $indent === 1) {
+    drush_print(_drush_recipes_indent($indent) . '<' . $recipe->name . '>');
   }
   $drush = array();
   foreach ($recipe->drecipe['recipe'] as $call) {
@@ -633,14 +636,18 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
               }
               $drush += _drush_recipes_recipe_to_drush($item, $indent+1);
               if ($list) {
-                drush_print(_drush_recipes_indent($indent) . '</' . $machine_name . ">\n");
+                drush_print(_drush_recipes_indent($indent) . '</' . $machine_name . '>');
               }
               continue;
             }
           }
         }
         else {
-          $drush[] = 'drush der '  . str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call);
+          $print = 'drush der '  . str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call);
+          if ($list) {
+            drush_print(_drush_recipes_indent($indent) . $print);
+          }
+          $drush[] = $print;
         }
       break;
       case DRUSH_RECIPES_FORMAT_TARGET:
@@ -652,24 +659,27 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 0, $recurse = TRUE, $
             // make sure first option gets the dashes it needs
             $print .= '--' . implode(' --', $call['options']);
           }
-          drush_print(_drush_recipes_indent($indent) . $print);
+          drush_print(_drush_recipes_indent($indent+1) . $print);
         }
       break;
       case DRUSH_RECIPES_FORMAT_CONDITIONAL:
         //  conditional is most complex so processing has to happen at run time
         $drush[] = $call;
         if ($list) {
-          drush_print(_drush_recipes_indent($indent) . 'CONDITIONAL: ' . implode(' OR ', $call[DRUSH_RECIPES_FORMAT_CONDITIONAL]));
+          drush_print(_drush_recipes_indent($indent+1) . 'CONDITIONAL: ' . implode(' OR ', $call[DRUSH_RECIPES_FORMAT_CONDITIONAL]));
         }
       break;
       case DRUSH_RECIPES_FORMAT_ARGUMENT:
         $drush[] = 'drush ' . implode(' ', $call);
         // see if we should print nicely formatted debug stuff
         if ($list) {
-          drush_print(_drush_recipes_indent($indent) . 'drush ' . implode(' ', $call));
+          drush_print(_drush_recipes_indent($indent+1) . 'drush ' . implode(' ', $call));
         }
       break;
     }
+  }
+  if ($list && $indent === 1) {
+    drush_print(_drush_recipes_indent($indent) . '</' . $recipe->name . ">\n");
   }
   return $drush;
 }
