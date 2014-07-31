@@ -1,6 +1,7 @@
 {
   "name": "Security update status",
   "drush_recipes_api": "1.0",
+  "weight": "-10",
   "dependencies": [
     "update"
   ],
