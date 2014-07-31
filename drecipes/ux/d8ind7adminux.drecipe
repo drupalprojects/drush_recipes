@@ -4,16 +4,8 @@
 	"weight": 0,
 	"recipe": [
 		[
-			"dl",
-			"navbar"
-		],
-		[
-			"dl",
-			"admin"
-		],
-		[
 			"en",
-			"navbar,admin"
+			"navbar"
 		],
 		"crufty_core_off.drecipe"
 	],

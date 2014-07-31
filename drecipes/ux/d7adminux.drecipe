@@ -5,17 +5,12 @@
 	"recipe": [
 		[
 			"dl",
-			"admin"
-		],
-		[
-			"dl",
 			"admin_menu"
 		],
 		"crufty_core_off.drecipe",
 		[
 			"en",
-			"admin,admin_menu,admin_menu_toolbar",
-			"--y"
+			"admin_menu,admin_menu_toolbar",
 		]
 	],
 	"metadata": {
