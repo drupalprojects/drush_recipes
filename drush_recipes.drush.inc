@@ -114,6 +114,16 @@ function drush_recipes_drush_help($section) {
 }
 
 /**
+ * Drush command callback for drush-diff-targets-recipe.
+ */
+function drush_drush_recipes_drush_diff_targets_recipe($target1, $target2) {
+  // @todo use two targets to compare what modules, features, variables are
+  // different between T1 and T2. Then provide the option to automatically
+  // create a recipe to get from one state to another.
+  drush_print('future functionality..');
+}
+
+/**
  * Drush command callback for drush-recipes-url.
  */
 function drush_drush_recipes_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL) {
@@ -150,6 +160,7 @@ function drush_drush_recipes_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL)
   else {
     drush_log(dt("Unable to connect to @url", array('@url' => $url)), 'error');
   }
+  */
 }
 
 /**
