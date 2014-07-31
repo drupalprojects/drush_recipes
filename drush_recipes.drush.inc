@@ -344,44 +344,47 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   array_multisort($weight, SORT_ASC, $cook);
   // convert cooking list into commands to execute
   drush_print("\n" . dt('Ingredients list to cook: @list', array('@list' => implode(',', $list))));
+  $recipe_list = array();
   foreach ($cook as $recipe) {
-    $commands += _drush_recipes_recipe_to_drush($recipe->drecipe['recipe']);
+    $recipe_list[] = _drush_recipes_recipe_to_drush($recipe);
   }
   // confirm cooking as this can be a ton of drush commands
   if ($recurse || drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
-    foreach ($commands as $command) {
-      if (is_array($command)) {
-        // test for complex process invoking
-        if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
-          drush_log('Adding ingredient: ' . $command['command'], 'ok');
-          drush_invoke_process($command[DRUSH_RECIPES_FORMAT_TARGET], $command['command'], $command['args'], $command['options']);
-        }
-        else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
-          // shift array keys forward if 0 is set to avoid issues
-          if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][0])) {
-            array_unshift($command[DRUSH_RECIPES_FORMAT_CONDITIONAL],'');
-            unset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][0]);
+    foreach ($recipe_list as $commands) {
+      foreach ($commands as $command) {
+        if (is_array($command)) {
+          // test for complex process invoking
+          if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
+            drush_log('Adding ingredient: ' . $command['command'], 'ok');
+            drush_invoke_process($command[DRUSH_RECIPES_FORMAT_TARGET], $command['command'], $command['args'], $command['options']);
           }
-          // force a selection to be made
-          while (!$which = drush_choice($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]));
-          // load up which based on array position selected from conditional
-          $which = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which];
-          drush_log('Adding ingredient: ' . $which, 'ok');
-          // recursive since they just selected a reference
-          drush_drush_recipes_drush_cook_recipes(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $which), TRUE);
+          else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
+            // shift array keys forward if 0 is set to avoid issues
+            if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][0])) {
+              array_unshift($command[DRUSH_RECIPES_FORMAT_CONDITIONAL],'');
+              unset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][0]);
+            }
+            // force a selection to be made
+            while (!$which = drush_choice($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]));
+            // load up which based on array position selected from conditional
+            $which = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which];
+            drush_log('Adding ingredient: ' . $which, 'ok');
+            // recursive since they just selected a reference
+            drush_drush_recipes_drush_cook_recipes(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $which), TRUE);
+          }
         }
-      }
-      else {
-        drush_log('Adding ingredient: ' . $command, 'ok');
-        $command .= ' --y';
-        // this is the simple method for running when non interactive
-        drush_shell_exec($command);
-        $shell_output = drush_shell_exec_output();
-        foreach ($shell_output as $shell) {
-          drush_print($shell);
+        else {
+          drush_log('Adding ingredient: ' . $command, 'ok');
+          $command .= ' --y';
+          // this is the simple method for running when non interactive
+          drush_shell_exec($command);
+          $shell_output = drush_shell_exec_output();
+          foreach ($shell_output as $shell) {
+            drush_print($shell);
+          }
         }
+        drush_log($command . ' complete!', 'ok');
       }
-      drush_log($command . ' complete!', 'ok');
     }
   }
   else {
