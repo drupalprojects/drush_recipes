@@ -126,12 +126,13 @@ function drush_drush_recipes_drush_diff_targets_recipe($target1, $target2) {
 /**
  * Drush command callback for drush-recipes-url.
  */
-function drush_drush_recipes_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL) {
-  /* //pseudo code for now til we build the service out
-  $response = drush_http_request($url);
+function drush_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL) {
+  //pseudo code for now til we build the service out
+  /*$response = file_get_contents($url);
+  $contents = utf8_encode($response);
+  $recipes = simplexml_load_string($contents);
+  drush_print_r((array) $recipes->drush_recipe);
   if (!$response->error) {
-    $contents = utf8_encode($response->data);
-    $recipes = simplexml_load_string($contents);
     $location = drush_prompt(dt('Location to write recipes'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes/service-drush.recipes/');
     // test directory exists / create it if we can
     if (is_dir("$location") || mkdir("$location")) {
@@ -160,8 +161,7 @@ function drush_drush_recipes_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL)
   }
   else {
     drush_log(dt("Unable to connect to @url", array('@url' => $url)), 'error');
-  }
-  */
+  }*/
 }
 
 /**
