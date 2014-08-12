@@ -371,8 +371,8 @@ function drush_drush_recipes_drush_write_recipe() {
     2 => 'routine',
     3 => 'utility',
   );
-  // prompt for type choice
-  while (!$type = drush_choice($recipe_types, dt('What type of recipe is this?')))
+  // prompt for the user with the default option
+  while (!$type = drush_choice_with_custom_defaults($recipe_types, 'add-on', dt('What type of recipe is this?'), '!value'))
   $type = $recipe_types[$type];
   // author is optional
   $author = drush_prompt(dt('Recipe author'), NULL, FALSE);
@@ -463,14 +463,14 @@ function drush_drush_recipes_drush_write_recipe() {
     // allow for writing to file or screen
     $formats['yaml'] = 'yaml';
   }
-  while (!$format = drush_choice($formats, dt('Which recipe encoding?')));
+  while (!$format = drush_choice_with_custom_defaults($formats, 'json', dt('Which recipe encoding?'), '!value'));
   // allow for writing to file or screen
   $output_locations = array(
-    1 => 'print',
-    2 => 'write to file',
+    1 => 'write to file',
+    2 => 'print',
   );
   // start writing to file if they selected that
-  if (drush_choice($output_locations, dt('What type of recipe is this?')) == 2) {
+  if (drush_choice_with_custom_defaults($output_locations, 'write to file', dt('Write to file or print to screen?')) === 'write to file') {
     $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
     $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
     // test directory exists / create it if we can
@@ -1045,4 +1045,106 @@ function _drush_recipes_detect_format($call) {
   }
   // fallback case is that it's an array of arguments
   return DRUSH_RECIPES_FORMAT_ARGUMENT;
+}
+
+ /**
+ * Replacement callback for drush_choice with better default handling.
+ *
+ * @param  array $options       an array of input
+ * @param  string $default_value the default value if nothing selected
+ * @param  string $prompt        question to ask the user
+ * @param  string $label         !value, !key or !number for listing
+ * @return string                value selected, otherwise $default_value
+ */
+function drush_choice_with_custom_defaults($options, $default_value, $prompt = 'Enter a number.', $label = '!value'){
+  print dt($prompt) . "\n";
+  //Make sure array has the correct row and column padding layout.
+  $array_pad = 0;
+  foreach ($options as $key => $option) {
+    if(is_array($option) && (count($option) > $array_pad)){
+      $array_pad = count($option);
+    }
+  }
+  //check to see if the $default_value is not set.  If no, populate with cancel
+  if(is_null($default_value)){
+    $default_value_test = 'Cancel';
+  }  
+  else{
+    //else we set the $default_value to the inputted value. 
+     $default_value_test = $default_value;
+  }
+
+  //may have to change the following values to meet standard of array syntax.
+  $default_array = array('[0]', ':', $default_value_test);
+  $rows[] = array_pad($default_array, $array_pad + 2, '');
+  $selection_number = 0;
+  foreach ($options as $key => $option) {
+    if((substr($key, 0, 3) == '-- ') && (substr($key, -3) == ' --')){
+      $rows[] = array_pad(array('', '', $option), $array_pad + 2, '');
+    }
+    else{
+      if($option != $default_value_test){
+        $selection_number++;
+        $row = array("[$selection_number]", ':');
+          if(is_array($option)){
+            $row = array_merge($row, $option);
+          }
+          else{
+            $row[] = dt($label, array('!number' => $selection_number, '!key' => $key, '!value' => $option));
+          }
+        $rows[] = $row;
+        $selection_list[$selection_number] = $key;
+        }
+      }   
+    }
+  
+    foreach ($rows as $row) {
+      //gets the intial value of the array.
+      if(current($row) == '[0]'){
+        for($i = 0; $i < 1; $i++){
+         $initial_rows_value = $row[2];
+        }
+      }
+      else{
+        //check to see if intital string and current string are equal.
+        if(strcmp($initial_rows_value, end($row)) == 0){
+          array_splice($rows, 1, -1);
+          //if we split, then we have to rebuild the numbering of the array. 
+        }
+      } 
+    }
+    drush_print_table($rows);
+    drush_print_pipe(array_keys($options));
+
+    //If user specifies choice (eg choice that isn't default)
+    //then make a selection and reprompt if the choice is not an available option
+    if(($choice = drush_get_option('choice', FALSE)) !== FALSE){
+      //first see if choice is one of the symbolic options
+      if(array_key_exists($choice, $options)){
+        return $choice;
+      }
+      elseif(array_key_exists($choice, $selection_list)){
+        return $selection_list[$choice];
+      }
+      //do something here to reprompt
+      return FALSE;
+    }
+
+    //If the user supplied the default answer 
+    if(!drush_get_context('DRUSH_NEGATIVE') && !drush_get_context('DRUSH_AFFIRMATIVE') && !drush_get_context('DRUSH_PIPE')){
+      while($line = trim(fgets(STDIN))){
+        return $selection_list[$line];
+      }
+    }
+
+    //If only one option in the array
+    if(drush_get_context('DRUSH_AFFIRMATIVE') && (count($options) == 1)){
+      return $selection_list[0];
+    }
+    //change this to be the default.
+    if($default_value == 'Cancel'){
+       drush_print(dt('Cancelled'));
+       return FALSE;
+    } 
+    return $default_array[2];
 }
