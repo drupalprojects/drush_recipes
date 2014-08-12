@@ -137,7 +137,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   $fields = array('name', 'type', 'status');
   $source_system = _drush_recipes_load_db_table($source_settings, 'system', 'name', $fields);
   $destination_system = _drush_recipes_load_db_table($destination_settings, 'system', 'name', $fields);
-  $en = $dis = $dl = array();
+  $drush = array();
   // compare the source with the destination
   foreach ($source_system as $project => $data) {
     // ensure A exists on B at least
@@ -197,6 +197,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       $drush['vset'][$name] = $data->value;
     }
   }
+  $calls = array();
   // @todo do a features comparison (if applicable)
   //if (module_exists('features')) {
     // drush_features_diff();
@@ -206,7 +207,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   foreach ($drush as $call => $items) {
     if ($call == 'vset') {
       foreach ($items as $name => $value) {
-        $calls[] = 'drush vset ' . $name . ' ' . $value;
+        $calls[] = 'drush ev variable_set("' . $name . '", ' . var_export(unserialize($value), TRUE) . ')';
       }
     }
     else if ($call == 'vdel') {
@@ -218,60 +219,67 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       $calls[$call] = 'drush ' . $call . implode(',', $items);
     }
   }
-  ksort($calls);
-  $recipe = array(
-    'name' => dt('Diff from @source to @destination', array('@source' => $source, '@destination' => $destination)),
-    'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
-    'weight' => 0,
-    'recipe' => $calls,
-    'metadata' => array(
-      'type' => 'utility',
-      'description' => 'This is an automatically produced recipe',
-    )
-  );
+  // insanely rare use case where we have an exact copy of a site..
+  if (!empty($calls)) {
+    ksort($calls);
+    $recipe = array(
+      'name' => dt('Diff from @source to @destination', array('@source' => $source, '@destination' => $destination)),
+      'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
+      'weight' => 0,
+      'recipe' => $calls,
+      'metadata' => array(
+        'type' => 'utility',
+        'description' => 'This is an automatically produced recipe',
+      )
+    );
 
-  $formats = array(
-    'json' => 'json',
-    'xml' => 'xml'
-  );
-  // test for yaml since we support that format too
-  if (function_exists('yaml_emit')) {
+    $formats = array(
+      'json' => 'json',
+      'xml' => 'xml'
+    );
+    // test for yaml since we support that format too
+    if (function_exists('yaml_emit')) {
+      // allow for writing to file or screen
+      $formats['yaml'] = 'yaml';
+    }
+    $format = drush_choice_with_custom_defaults($formats, 'json', dt('Which recipe encoding?'));
     // allow for writing to file or screen
-    $formats['yaml'] = 'yaml';
-  }
-  $format = drush_choice_with_custom_defaults($formats, 'json', dt('Which recipe encoding?'));
-  // allow for writing to file or screen
-  $output_locations = array(
-    1 => 'write to file',
-    2 => 'print',
-  );
-  // start writing to file if they selected that
-  if (drush_choice_with_custom_defaults($output_locations, 'write to file', dt('Write to file or print to screen?')) === 'write to file') {
-    $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
-    $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
-    // test directory exists / create it if we can
-    if (is_dir("$location") || mkdir("$location")) {
-      // try to write recipe to the file
-      $output = _drush_recipes_encode($recipe, $format);
-      if (!file_put_contents("$location/$file", $output)) {
-        drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
-        drush_print(_drush_recipes_encode($recipe, $format));
+    $output_locations = array(
+      1 => 'write to file',
+      2 => 'print',
+    );
+    // start writing to file if they selected that
+    if (drush_choice_with_custom_defaults($output_locations, 'write to file', dt('Write to file or print to screen?')) === 'write to file') {
+      $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
+      $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
+      // test directory exists / create it if we can
+      if (is_dir("$location") || mkdir("$location")) {
+        // try to write recipe to the file
+        $output = _drush_recipes_encode($recipe, $format);
+        if (!file_put_contents("$location/$file", $output)) {
+          drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+          drush_print(_drush_recipes_encode($recipe, $format));
+        }
+        else {
+          // success! tell them how to use this
+          drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
+        }
       }
       else {
-        // success! tell them how to use this
-        drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
+        drush_log(dt("Unable to write folder @location", array('@location' => $location)), 'error');
+        drush_print(_drush_recipes_encode($recipe, $format));
       }
     }
     else {
-      drush_log(dt("Unable to write folder @location", array('@location' => $location)), 'error');
+      // just write it to the screen though this is mostly just for debugging
       drush_print(_drush_recipes_encode($recipe, $format));
     }
+    return TRUE;
   }
   else {
-    // just write it to the screen though this is mostly just for debugging
-    drush_print(_drush_recipes_encode($recipe, $format));
+    drush_print(dt('The sites are exactly the same, most likely something went wrong unless you were testing if they are the same.'));
+    return FALSE;
   }
-  return TRUE;
 }
 
 /**
@@ -285,13 +293,15 @@ function _drush_recipes_load_db_table($alias_settings, $table, $key, $fields = '
   sitealias_get_databases_from_record($alias_settings);
   // bootstrap to the max possible for this alias
   drush_bootstrap_max_to_sitealias($alias_settings);
-
+  Database::addConnectionInfo($alias_settings['#name'], 'default', $alias_settings['databases']['default']['default']);
+  db_set_active($alias_settings['#name']);
   $ary = array();
   // selec the fields from the table and convert to an array of values
   $rsc = drush_db_select($table, $fields);
   while ($row = drush_db_fetch_object($rsc)) {
     $ary[$row->{$key}] = $row;
   }
+  db_set_active();
 
   return $ary;
 }
@@ -1068,9 +1078,9 @@ function drush_choice_with_custom_defaults($options, $default_value, $prompt = '
   //check to see if the $default_value is not set.  If no, populate with cancel
   if(is_null($default_value)){
     $default_value_test = 'Cancel';
-  }  
+  }
   else{
-    //else we set the $default_value to the inputted value. 
+    //else we set the $default_value to the inputted value.
      $default_value_test = $default_value;
   }
 
@@ -1095,9 +1105,9 @@ function drush_choice_with_custom_defaults($options, $default_value, $prompt = '
         $rows[] = $row;
         $selection_list[$selection_number] = $key;
         }
-      }   
+      }
     }
-  
+
     foreach ($rows as $row) {
       //gets the intial value of the array.
       if(current($row) == '[0]'){
@@ -1109,9 +1119,9 @@ function drush_choice_with_custom_defaults($options, $default_value, $prompt = '
         //check to see if intital string and current string are equal.
         if(strcmp($initial_rows_value, end($row)) == 0){
           array_splice($rows, 1, -1);
-          //if we split, then we have to rebuild the numbering of the array. 
+          //if we split, then we have to rebuild the numbering of the array.
         }
-      } 
+      }
     }
     drush_print_table($rows);
     drush_print_pipe(array_keys($options));
@@ -1130,7 +1140,7 @@ function drush_choice_with_custom_defaults($options, $default_value, $prompt = '
       return FALSE;
     }
 
-    //If the user supplied the default answer 
+    //If the user supplied the default answer
     if(!drush_get_context('DRUSH_NEGATIVE') && !drush_get_context('DRUSH_AFFIRMATIVE') && !drush_get_context('DRUSH_PIPE')){
       while($line = trim(fgets(STDIN))){
         return $selection_list[$line];
@@ -1145,6 +1155,6 @@ function drush_choice_with_custom_defaults($options, $default_value, $prompt = '
     if($default_value == 'Cancel'){
        drush_print(dt('Cancelled'));
        return FALSE;
-    } 
+    }
     return $default_array[2];
 }
