@@ -116,11 +116,184 @@ function drush_recipes_drush_help($section) {
 /**
  * Drush command callback for drush-diff-targets-recipe.
  */
-function drush_drush_recipes_drush_diff_targets_recipe($target1, $target2) {
-  // @todo use two targets to compare what modules, features, variables are
-  // different between T1 and T2. Then provide the option to automatically
-  // create a recipe to get from one state to another.
-  drush_print('future functionality..');
+function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destination = NULL) {
+  // test for source being provided by target
+  $alias = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
+  // if alias is not empty / @none and destination is empty
+  if (!empty($alias) && $alias != '@none' && empty($destination)) {
+    $destination = $source;
+    $source = $alias;
+  }
+  // preflight destination in case it defines the alias used by the source
+  _drush_sitealias_get_record($destination);
+  // after preflight, get source and destination settings
+  $source_settings = drush_sitealias_get_record($source);
+  $destination_settings = drush_sitealias_get_record($destination);
+  // apply command-specific options.
+  drush_sitealias_command_default_options($source_settings, 'source-');
+  drush_sitealias_command_default_options($destination_settings, 'target-');
+
+  // select module / themes / profiles in use via system table
+  $fields = array('name', 'type', 'status');
+  $source_system = _drush_recipes_load_db_table($source_settings, 'system', 'name', $fields);
+  $destination_system = _drush_recipes_load_db_table($destination_settings, 'system', 'name', $fields);
+  $en = $dis = $dl = array();
+  // compare the source with the destination
+  foreach ($source_system as $project => $data) {
+    // ensure A exists on B at least
+    if (array_key_exists($project, $destination_system) ) {
+      $destination_system[$project]->type = 'found';
+      // now check for status
+      if ($data->status != $destination_system[$project]->status) {
+        // this means source is on, destination is off
+        if ($data->status == 1) {
+          $drush['dis'][$project] = $project;
+        }
+        else {
+          $drush['en'][$project] = $project;
+        }
+      }
+    }
+    else {
+      // now we know we need to download something
+      $drush['dl'][$project] = $project;
+    }
+  }
+  // test for destination having modules not originally in source
+  foreach ($destination_system as $project => $data) {
+    // find things we didn't find previously
+    if ($data->type != 'found') {
+      $drush['dl'][$project] = $project;
+      // if enabled then let's mark that it needs enabled
+      if ($data->status) {
+        $drush['en'][$project] = $project;
+      }
+    }
+  }
+
+  // do a variable comparison
+  $source_vars = _drush_recipes_load_db_table($source_settings, 'variable', 'name');
+  $destination_vars = _drush_recipes_load_db_table($destination_settings, 'variable', 'name');
+  // compare the source with the destination
+  foreach ($source_vars as $name => $data) {
+    // ensure variable A exists on B
+    if (array_key_exists($name, $destination_vars) ) {
+      $destination_vars[$name]->name = 'found';
+      // now check for status
+      if ($data->value != $destination_vars[$name]->value) {
+        // this means source is different from destination
+        $drush['vset'][$name] = $destination_vars[$name]->value;
+      }
+    }
+    else {
+      // now we know we need to delete this variable
+      $drush['vdel'][$name] = $name;
+    }
+  }
+  // test for destination having variables not originally in source
+  foreach ($destination_vars as $name => $data) {
+    // find things we didn't find previously
+    if ($data->name != 'found') {
+      $drush['vset'][$name] = $data->value;
+    }
+  }
+  // @todo do a features comparison (if applicable)
+  //if (module_exists('features')) {
+    // drush_features_diff();
+    // need to try and get
+  //}
+  // now we convert these into drush calls and feed it to its own recipe
+  foreach ($drush as $call => $items) {
+    if ($call == 'vset') {
+      foreach ($items as $name => $value) {
+        $calls[] = 'drush vset ' . $name . ' ' . $value;
+      }
+    }
+    else if ($call == 'vdel') {
+      foreach ($items as $name => $value) {
+        $calls[] = 'drush vdel ' . $name;
+      }
+    }
+    else {
+      $calls[$call] = 'drush ' . $call . implode(',', $items);
+    }
+  }
+  ksort($calls);
+  $recipe = array(
+    'name' => dt('Diff from @source to @destination', array('@source' => $source, '@destination' => $destination)),
+    'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
+    'weight' => 0,
+    'recipe' => $calls,
+    'metadata' => array(
+      'type' => 'utility',
+      'description' => 'This is an automatically produced recipe',
+    )
+  );
+
+  $formats = array(
+    'json' => 'json',
+    'xml' => 'xml'
+  );
+  // test for yaml since we support that format too
+  if (function_exists('yaml_emit')) {
+    // allow for writing to file or screen
+    $formats['yaml'] = 'yaml';
+  }
+  $format = drush_choice_with_custom_defaults($formats, 'json', dt('Which recipe encoding?'));
+  // allow for writing to file or screen
+  $output_locations = array(
+    1 => 'write to file',
+    2 => 'print',
+  );
+  // start writing to file if they selected that
+  if (drush_choice_with_custom_defaults($output_locations, 'write to file', dt('Write to file or print to screen?')) === 'write to file') {
+    $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
+    $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
+    // test directory exists / create it if we can
+    if (is_dir("$location") || mkdir("$location")) {
+      // try to write recipe to the file
+      $output = _drush_recipes_encode($recipe, $format);
+      if (!file_put_contents("$location/$file", $output)) {
+        drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+        drush_print(_drush_recipes_encode($recipe, $format));
+      }
+      else {
+        // success! tell them how to use this
+        drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
+      }
+    }
+    else {
+      drush_log(dt("Unable to write folder @location", array('@location' => $location)), 'error');
+      drush_print(_drush_recipes_encode($recipe, $format));
+    }
+  }
+  else {
+    // just write it to the screen though this is mostly just for debugging
+    drush_print(_drush_recipes_encode($recipe, $format));
+  }
+  return TRUE;
+}
+
+/**
+ * load table data from a source
+ * @return array an array of database info
+ */
+function _drush_recipes_load_db_table($alias_settings, $table, $key, $fields = '*') {
+  // set the context to the alias in question
+  drush_sitealias_set_alias_context($alias_settings);
+  // get the database credentials from the alias
+  sitealias_get_databases_from_record($alias_settings);
+  // bootstrap to the max possible for this alias
+  drush_bootstrap_max_to_sitealias($alias_settings);
+
+  $ary = array();
+  // selec the fields from the table and convert to an array of values
+  $rsc = drush_db_select($table, $fields);
+  while ($row = drush_db_fetch_object($rsc)) {
+    $ary[$row->{$key}] = $row;
+  }
+
+  return $ary;
 }
 
 /**
@@ -162,6 +335,8 @@ function drush_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL) {
   else {
     drush_log(dt("Unable to connect to @url", array('@url' => $url)), 'error');
   }*/
+  drush_print(dt('Coming soon'));
+  return 1;
 }
 
 /**
@@ -194,6 +369,7 @@ function drush_drush_recipes_drush_write_recipe() {
   $recipe_types = array(
     1 => 'add-on',
     2 => 'routine',
+    3 => 'utility',
   );
   // prompt for type choice
   while (!$type = drush_choice($recipe_types, dt('What type of recipe is this?')))
