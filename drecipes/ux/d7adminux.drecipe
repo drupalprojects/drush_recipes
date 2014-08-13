@@ -10,7 +10,12 @@
 		"crufty_core_off.drecipe",
 		[
 			"en",
-			"admin_menu,admin_menu_toolbar",
+			"admin_menu,admin_menu_toolbar"
+		],
+		[
+			"vset",
+			"admin_menu_cache_client",
+			"FALSE"
 		]
 	],
 	"metadata": {
