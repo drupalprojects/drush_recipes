@@ -197,6 +197,61 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       $drush['vset'][$name] = $data->value;
     }
   }
+
+  // compare permissions and roles
+  // load up the source db / roles / permissions
+  _drush_recipes_db_set_active($source_settings);
+  drupal_static_reset('user_role_permissions');
+  $source_roles = user_roles();
+  $source_perms = user_role_permissions($source_roles);
+  _drush_recipes_db_set_active($destination_settings);
+  // load up the destination db / roles / permissions
+  drupal_static_reset('user_role_permissions');
+  $destination_roles = user_roles();
+  $destination_perms = user_role_permissions($destination_roles);
+  // return to default just to be safe
+  db_set_active();
+  // comparison, this can be a bit evil..
+  foreach ($source_perms as $rid => $permissions) {
+    // ensure variable A exists on B
+    if (array_key_exists($rid, $destination_perms) ) {
+      // dig deeper into permissions arrays
+      foreach ($permissions as $permission => $bool) {
+        // check that a permission is set
+        if (array_key_exists($permission, $destination_perms[$rid]) ) {
+          // store the fact that we found this role in some fashion
+          $destination_perms[$rid][$permission] = 'found';
+        }
+        else {
+          // this means destination DOES NOT have a perm in source
+          $drush['rmp'][$rid][$permission] = TRUE;
+        }
+      }
+      $destination_perms[$rid]['_drush_found'] = 'found';
+      // test for destination having permissions not originally in source
+      foreach ($destination_perms[$rid] as $permission => $bool) {
+        // find things we didn't find previously
+        if ($bool != 'found') {
+          // a permission exists in destination but not source
+          $drush['rap'][$rid][$permission] = TRUE;
+        }
+      }
+    }
+    else {
+      // a role was deleted
+      $drush['rdel'][$rid] = $rid;
+    }
+  }
+  // test for destination having roles not originally in source
+  foreach ($destination_perms as $rid => $permissions) {
+    // find things we didn't find previously
+    if (!isset($permissions['_drush_found'])) {
+      // a role exists in destination that's not in source
+      $drush['rcrt'][$rid] = $destination_roles[$rid];
+      unset($permissions['_drush_found']);
+      $drush['rap'][$rid] = $permissions;
+    }
+  }
   $calls = array();
   // @todo do a features comparison (if applicable)
   //if (module_exists('features')) {
@@ -205,18 +260,66 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   //}
   // now we convert these into drush calls and feed it to its own recipe
   foreach ($drush as $call => $items) {
-    if ($call == 'vset') {
-      foreach ($items as $name => $value) {
-        $calls[] = 'drush ev variable_set("' . $name . '", ' . var_export(unserialize($value), TRUE) . ')';
-      }
-    }
-    else if ($call == 'vdel') {
-      foreach ($items as $name => $value) {
-        $calls[] = 'drush vdel ' . $name;
-      }
-    }
-    else {
-      $calls[$call] = 'drush ' . $call . implode(',', $items);
+    switch ($call) {
+      // set variables the long way
+      case 'vset':
+        // optional sanitization by profiler_builder
+        if (module_exists('profiler_builder')) {
+          $kill = _profiler_builder_ignore_list();
+          // unset values we know should never transition
+          foreach ($items as $name => $value) {
+            if (in_array($name, $kill)) {
+              unset($items[$name]);
+            }
+          }
+        }
+        else {
+          drush_print(dt('While Profiler Builder is not required, it is highly recommended so that it can automatically sanitize variables you don\' want to ship around between builds (like cron keys). run drush dl profiler_builder'));
+        }
+        // loop through items and build variables with full set statements
+        foreach ($items as $name => $value) {
+          $calls[] = 'drush ev variable_set("' . $name . '", ' . var_export(unserialize($value), TRUE) . ')';
+        }
+      break;
+      // delete variables
+      case 'vdel':
+        foreach ($items as $name => $value) {
+          $calls[] = 'drush vdel ' . $name;
+        }
+      break;
+      // create roles
+      case 'rcrt':
+        foreach ($items as $rid => $name) {
+          // goofy key names ensures its above permission addition
+          $calls['aaa_create_role' . $rid] = 'drush rcrt ' . $rid . ' \'' . $name . '\'';
+        }
+      break;
+      // delete roles
+      case 'rdel':
+        foreach ($items as $rid) {
+          // goofy key names ensures its above permission addition
+          $calls[] = 'drush rdel ' . $rid;
+        }
+      break;
+      // add permissions
+      case 'rap':
+        foreach ($items as $rid => $permissions) {
+          foreach ($permissions as $permission => $bool) {
+            $calls['zzz_add_perm' . $rid . $permission] = 'drush rap ' . $rid . ' \'' . $permission . '\'';
+          }
+        }
+      break;
+      // remove permissions
+      case 'rmp':
+        foreach ($items as $rid => $permissions) {
+          foreach ($permissions as $permission => $bool) {
+            $calls[] = 'drush rmp ' . $rid . ' \'' . $permission . '\'';
+          }
+        }
+      break;
+      default:
+        $calls[$call] = 'drush ' . $call . ' ' . implode(',', $items);
+      break;
     }
   }
   // insanely rare use case where we have an exact copy of a site..
@@ -287,14 +390,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
  * @return array an array of database info
  */
 function _drush_recipes_load_db_table($alias_settings, $table, $key, $fields = '*') {
-  // set the context to the alias in question
-  drush_sitealias_set_alias_context($alias_settings);
-  // get the database credentials from the alias
-  sitealias_get_databases_from_record($alias_settings);
-  // bootstrap to the max possible for this alias
-  drush_bootstrap_max_to_sitealias($alias_settings);
-  Database::addConnectionInfo($alias_settings['#name'], 'default', $alias_settings['databases']['default']['default']);
-  db_set_active($alias_settings['#name']);
+  _drush_recipes_db_set_active($alias_settings);
   $ary = array();
   // selec the fields from the table and convert to an array of values
   $rsc = drush_db_select($table, $fields);
@@ -304,6 +400,21 @@ function _drush_recipes_load_db_table($alias_settings, $table, $key, $fields = '
   db_set_active();
 
   return $ary;
+}
+
+/**
+ * set active db based on the settings of an alias
+ */
+function _drush_recipes_db_set_active($alias_settings) {
+  // set the context to the alias in question
+  drush_sitealias_set_alias_context($alias_settings);
+  // get the database credentials from the alias
+  sitealias_get_databases_from_record($alias_settings);
+  // bootstrap to the max possible for this alias
+  drush_bootstrap_max_to_sitealias($alias_settings);
+  Database::addConnectionInfo($alias_settings['#name'], 'default', $alias_settings['databases']['default']['default']);
+  db_set_active($alias_settings['#name']);
+  return 1;
 }
 
 /**
