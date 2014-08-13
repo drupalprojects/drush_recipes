@@ -324,6 +324,15 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   }
   // insanely rare use case where we have an exact copy of a site..
   if (!empty($calls)) {
+    // switch from easy to write format into arguments
+    foreach ($calls as $id => $call) {
+      $item = explode(' ', $call);
+      // always will be but just be safe
+      if ($item[0] == 'drush') {
+        array_shift($item);
+      }
+      $calls[$id] = $item;
+    }
     ksort($calls);
     $recipe = array(
       'name' => dt('Diff from @source to @destination', array('@source' => $source, '@destination' => $destination)),
