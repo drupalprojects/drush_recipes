@@ -7,11 +7,7 @@
     "paranoia"
   ],
   "recipe": [
-    [
-      "vset",
-      "user_register",
-      "1"
-    ],
+  "dr_security_core_settings.drecipe",
     [
       "dis",
       "php"
@@ -30,10 +26,9 @@
     ]
   ],
   "metadata": {
-    "description": "Disable projects that cause issues, increase h-our defenses cap'in!",
+    "description": "Disable php and enhance security through simple baseline ways.",
     "version": "1.0",
     "type": "add-on",
     "author": "btopro",
-    "logo": "files\/image.png"
   }
 }

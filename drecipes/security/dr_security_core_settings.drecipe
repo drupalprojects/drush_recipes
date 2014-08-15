@@ -1,0 +1,38 @@
+{
+  "name": "Drupal secure core settings",
+  "drush_recipes_api": "1.0",
+  "weight": 0,
+  "recipe": [
+    [
+      "vset",
+      "user_register",
+      "USER_REGISTER_ADMINISTRATORS_ONLY"
+    ],
+    [
+      "vset",
+      "error_level",
+      "0"
+    ],
+    [
+      "vset",
+      "contact_default_status",
+      "0"
+    ],
+    [
+      "vset",
+      "anonymous",
+      "Guest"
+    ],
+    [
+      "vset",
+      "user_email_verification",
+      "0"
+    ]
+  ],
+  "metadata": {
+    "type": "add-on",
+    "description": "Applies secure settings to drupal core modules",
+    "version": "1.0",
+    "author": "kristat"
+  }
+}

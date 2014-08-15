@@ -1,0 +1,75 @@
+{
+  "name": "OWASP security modules",
+  "drush_recipes_api": "1.0",
+  "weight": 0,
+  "dependencies": [
+      "security_review",
+      "autologout",
+      "honeypot",
+      "session_limit",
+      "username_enumeration_prevention"
+  ],
+  "recipe": [
+      "dr_security.drecipe",
+    [
+      "en",
+      "security_review,autologout,honeypot,session_limit,username_enumeration_prevention"
+    ],
+    [
+      "vset",
+      "autologout_timeout",
+      "1800"
+    ],
+    [
+      "vset",
+      "autologout_max_timeout",
+      "1800"
+    ],
+    [
+      "vset",
+      "autologout_padding",
+      "30"
+    ],
+    [
+      "vset",
+      "autologout_use_watchdog",
+      "1"
+    ],
+    [
+      "vset",
+      "honeypot_protect_all_forms",
+      "0"
+    ],
+    [
+      "vset",
+      "honeypot_log",
+      "1"
+    ],
+    [
+      "vset",
+      "honeypot_form_user_register_form",
+      "1"
+    ],
+    [
+      "vset",
+      "honeypot_form_user_pass",
+      "1"
+    ],
+    [
+      "vset",
+      "honeypot_form_contact_site_form",
+      "1"
+    ],
+    [
+      "vset",
+      "honeypot_form_contact_personal_form",
+      "1"
+    ]
+  ],
+  "metadata": {
+    "type": "add-on",
+    "description": "Enables and sets modules necessary to mitigate OWASP top 10",
+    "version": "1.0",
+    "author": "kristat"
+  }
+}
