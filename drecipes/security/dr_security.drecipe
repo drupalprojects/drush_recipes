@@ -7,7 +7,7 @@
     "paranoia"
   ],
   "recipe": [
-  "dr_security_core_settings.drecipe",
+    "dr_security_core_settings.drecipe",
     [
       "dis",
       "php"
@@ -29,6 +29,6 @@
     "description": "Disable php and enhance security through simple baseline ways.",
     "version": "1.0",
     "type": "add-on",
-    "author": "btopro",
+    "author": "btopro"
   }
 }
