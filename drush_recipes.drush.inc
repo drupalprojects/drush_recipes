@@ -990,7 +990,12 @@ function _drush_recipes_array_to_xml($array, &$xml) {
       }
     }
     else {
+      if(!is_numeric($key)){
         $xml->addChild("$key","$value");
+      }
+      else {
+        $xml->addChild("num$key","$value");
+      }
     }
   }
 }
