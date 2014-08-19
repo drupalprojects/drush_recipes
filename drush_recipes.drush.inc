@@ -431,41 +431,67 @@ function _drush_recipes_db_set_active($alias_settings) {
  */
 function drush_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL) {
   //pseudo code for now til we build the service out
-  /*$response = file_get_contents($url);
+  $response = file_get_contents($url);
   $contents = utf8_encode($response);
-  $recipes = simplexml_load_string($contents);
-  drush_print_r((array) $recipes->drush_recipe);
+  $recipexml = simplexml_load_string($contents);
   if (!$response->error) {
-    $location = drush_prompt(dt('Location to write recipes'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes/service-drush.recipes/');
-    // test directory exists / create it if we can
-    if (is_dir("$location") || mkdir("$location")) {
-      foreach ($recipes as $recipe) {
-        // should list the recipe so we know what we are saving from remote
-        // @todo probably need to wrap recipe in a file wrapper / object
-        _drush_recipes_recipe_to_drush($recipe);
-        if (drush_confirm("Are you sure you want to save the above recipe? (this will overwrite your local copy in that directory if its allowed)")) {
-          // start writing to file if they selected that
-          $file = $recipe->name . '.' . DRUSH_RECIPE_EXTENSION;
-          // try to write recipe to the file
-          $output = _drush_recipes_encode($recipe, 'json');
-          if (!file_put_contents("$location/$file", $output)) {
-            drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+    $recipe_items = $recipexml->drush_recipe;
+    foreach ($recipe_items as $recipes) {
+      $recipes = (array) $recipes;
+      $location = drush_prompt(dt('Location to write recipes'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes/_SERVICE-drush.recipes');
+      // test directory exists / create it if we can
+      if (is_dir("$location") || mkdir("$location")) {
+        // loop through recipes that come across
+        foreach ($recipes as $recipe) {
+          $recipe = (array) $recipe;
+          foreach ($recipe as $key => $item) {
+            if (gettype($item) == 'object') {
+              $recipe[$key] = (array) $item;
+            }
+            // account for deep nested recipes
+            if ($key == 'recipe') {
+              foreach ($item as $key2 => $item2) {
+                if (gettype($item2) == 'object') {
+                  $arytmp = (array) $item2;
+                  // see if we need to mash this
+                  if (count($arytmp) == 1) {
+                    $str = array_pop($arytmp);
+                    $recipe[$key][$key2] = explode(' ', $str);
+                  }
+                }
+              }
+            }
           }
-          else {
-            // success! tell them how to use this
-            drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
+          // need a file wrapper style call
+          // usually these are loaded from the file system
+          $objtmp = (object) array('name' => '', 'drecipe' => array());
+          $objtmp->name = trim($recipe['machine_name']);
+          $objtmp->drecipe = $recipe;
+          _drush_recipes_recipe_to_drush($objtmp);
+          if (drush_confirm("Are you sure you want to save the above recipe? (this will overwrite your local copy in that directory if its allowed)")) {
+            // start writing to file if they selected that
+            $file = trim($recipe['machine_name']) . '.' . DRUSH_RECIPE_EXTENSION;
+            unset($recipe['machine_name']);
+            // try to write recipe to the file
+            $output = _drush_recipes_encode($recipe, 'json');
+            if (!file_put_contents("$location/$file", $output)) {
+              drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+            }
+            else {
+              // success! tell them how to use this
+              drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
+            }
           }
         }
       }
-    }
-    else {
-      drush_log(dt("Unable to write folder @location", array('@location' => $location)), 'error');
+      else {
+        drush_log(dt("Unable to write folder @location", array('@location' => $location)), 'error');
+      }
     }
   }
   else {
     drush_log(dt("Unable to connect to @url", array('@url' => $url)), 'error');
-  }*/
-  drush_print(dt('Coming soon'));
+  }
   return 1;
 }
 
@@ -733,7 +759,13 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
     // in the case of drush RR registry_rebuild is required
     if () {
       drush_log(dt('Recipes could not be run, @name is listed as a known conflict of one of the included recipes. Review the conflict and try again.', array('@name' => $recipe->name)), 'error');
-      drush_user_abort();
+      // allow them to force download these commands
+      if () {
+
+      }
+      else {
+        drush_user_abort();
+      }
     }
   }*/
 
