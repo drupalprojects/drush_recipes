@@ -879,15 +879,14 @@ function _drush_recipes_system_rebuild_recipe_data() {
       $locations[] = $dr_locations;
     }
   }
-  else {
-    // rare but check for environmental var
-    if (isset($_ENV['DR_LOCATIONS'])) {
-      if (is_array($_ENV['DR_LOCATIONS'])) {
-        $locations = array_merge($locations, $_ENV['DR_LOCATIONS']);
-      }
-      else {
-        $locations[] = $_ENV['DR_LOCATIONS'];
-      }
+
+  // rare but check for environmental var
+  if (isset($_ENV['DR_LOCATIONS'])) {
+    if (is_array($_ENV['DR_LOCATIONS'])) {
+      $locations = array_merge($locations, $_ENV['DR_LOCATIONS']);
+    }
+    else {
+      $locations[] = $_ENV['DR_LOCATIONS'];
     }
   }
 
