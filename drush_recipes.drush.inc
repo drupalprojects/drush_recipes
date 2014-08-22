@@ -734,7 +734,11 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   }
   $recipes = _drush_recipes_system_rebuild_recipe_data();
   $cook = array_intersect_key($recipes, array_flip($list));
-  $dependencies = $conflicts = array();
+  if (empty($cook)) {
+    drush_log('The recipes you have specified don\'t exist, try running drush dlr for a listing of available commands or use --dr-locations to include a location that might have the recipe you just tried to cook.', 'error');
+    return FALSE;
+  }
+  $dependencies = $conflicts = $weight = array();
   // ensure that they are listed based on weight to form a block chain
   foreach ($cook as $key => $recipe) {
     $weight[$key]  = $recipe->drecipe['weight'];
