@@ -6,6 +6,13 @@
    * as how to create your own recipes.
    */
 
+// You can define additional dr_locations to search for in your .drush/drushrc.php
+// settings file so that you can stash recipes in a shared location like box.com
+// to use this add something like:
+// $options['dr_locations'] = '/drushstuff';
+// or
+// $options['dr_locations'] = array('/drushstuff', '/drecipes');
+
 /**
  * Drush Recipe 1.0
  *

@@ -40,6 +40,7 @@ function drush_recipes_drush_command() {
     ),
     'options' => array(
       'more-detail' => dt('Show all info available'),
+      'dr-locations' => dt('User defined list of other locations to load in from'),
     ),
     'aliases' => array('dlr'),
     'examples' => array(
@@ -84,6 +85,9 @@ function drush_recipes_drush_command() {
     'description' => dt('"cook" up a drush recipe'),
     'arguments' => array(
       'recipes' => dt("List of recipes to execute, in order and comma separated"),
+    ),
+    'options' => array(
+      'dr-locations' => dt('User defined list of other locations to load in from'),
     ),
     'aliases' => array('cook'),
     'examples' => array(
@@ -854,6 +858,39 @@ function _drush_recipes_system_rebuild_recipe_data() {
     );
     $function_pattern = '[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*';
   }
+  // see if the user has defined any additional locations at run time
+  if ($dr_locations = drush_get_option('dr-locations', FALSE)) {
+    // We have this set with --dr-locations on the cli
+    $dr_locations = explode(',', $dr_locations);
+    if (is_array($dr_locations)) {
+      $locations = array_merge($locations, $dr_locations);
+    }
+    else {
+      $locations[] = $dr_locations;
+    }
+  }
+  // allow drushrc.php options to also be used
+  if ($dr_locations = drush_get_option('dr_locations', FALSE)) {
+    // We have this set in the drushrc.php file
+    if (is_array($dr_locations)) {
+      $locations = array_merge($locations, $dr_locations);
+    }
+    else {
+      $locations[] = $dr_locations;
+    }
+  }
+  else {
+    // rare but check for environmental var
+    if (isset($_ENV['DR_LOCATIONS'])) {
+      if (is_array($_ENV['DR_LOCATIONS'])) {
+        $locations = array_merge($locations, $_ENV['DR_LOCATIONS']);
+      }
+      else {
+        $locations[] = $_ENV['DR_LOCATIONS'];
+      }
+    }
+  }
+
   $recipes = array();
   // file preg_match pattern
   $pattern = '/^' . $function_pattern . '\.' . DRUSH_RECIPE_EXTENSION . '/';
@@ -905,6 +942,9 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
     $searchdir[] = drush_get_context('DRUSH_PER_USER_CONFIGURATION');
     $searchdir[] = drush_get_context('DRUSH_SITE_WIDE_CONFIGURATION');
     $searchdir[] = dirname(__FILE__) . '/..';
+  }
+  elseif (!in_array($directory, array('drush-system', 'drecipes', 'themes', 'modules'))) {
+    $searchdir[] = $directory;
   }
   else {
     $searchdir = array($directory);
