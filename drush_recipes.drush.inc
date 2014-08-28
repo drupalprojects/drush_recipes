@@ -18,7 +18,7 @@
 
 define('DRUSH_RECIPE_EXTENSION', 'drecipe');
 define('DRUSH_RECIPES_API_VERSION', '1.0');
-define('DRUSH_RECIPES_CORE_COMPATIBILITY', '7.x');
+define('DRUSH_RECIPES_CORE_COMPATIBILITY', '7');
 define('DRUSH_RECIPES_MAX_RECURSION', 5);
 define('DRUSH_RECIPES_DEFAULT_URL', 'http://drush.recipes/recipes.xml');
 // listing of the types of drush recipe formats we support
@@ -86,6 +86,15 @@ function drush_recipes_drush_command() {
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
+  $items['drush-validate-recipes'] = array(
+    'description' => dt('Validate a saved recipe will run if built from scratch'),
+    'aliases' => array('dvr'),
+    'examples' => array(
+      'drush dvr dr_security' =>
+        'Validate that dr_security will work if cooked.',
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+  );
   $items['drush-diff-targets-recipe'] = array(
     'description' => dt('Analyze two targets and create a recipe to chart a course from one to another. Great for figuring out what a client changed after a distro was installed.'),
     'aliases' => array('ddt'),
@@ -98,7 +107,7 @@ function drush_recipes_drush_command() {
   $items['drush-cook-recipes'] = array(
     'description' => dt('"cook" up a drush recipe'),
     'arguments' => array(
-      'recipes' => dt("List of recipes to execute, in order and comma separated"),
+      'recipes' => dt("List of recipes to run, in order and comma separated"),
     ),
     'options' => array(
       'dr-locations' => dt('User defined list of other locations to load in from'),
@@ -121,7 +130,7 @@ function drush_recipes_drush_help($section) {
     case 'drush:drush-list-recipes':
       return dt('List the available recipes');
     case 'drush:drush-recipes-url':
-      return dt('Sync recipes from a remote service');
+      return dt('Sync recipes from a remote service like drush.recipes');
     case 'drush:drush-write-recipe':
       return dt('Write a new recipe from commandline');
     case 'drush:drush-diff-targets-recipe':
@@ -130,6 +139,8 @@ function drush_recipes_drush_help($section) {
       return dt('Perform a series of drush recipes');
   /*  case 'drush:drush-dl':
       return dt('Download a file from a url');*/
+    case 'drush:drush-validate-recipes':
+      return dt('Validate a recipe is in the correct format.');
   }
 }
 
@@ -492,14 +503,20 @@ function drush_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL) {
             // start writing to file if they selected that
             $file = trim($recipe['machine_name']) . '.' . DRUSH_RECIPE_EXTENSION;
             unset($recipe['machine_name']);
-            // try to write recipe to the file
-            $output = _drush_recipes_encode($recipe, 'json');
-            if (!file_put_contents("$location/$file", $output)) {
-              drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+            // validate that this is an actual recipe format
+            if (!_drush_recipes_validate_recipe($recipe)) {
+              drush_log(dt('The returned recipe message was not a valid recipe, this has been ignored and will not be written to file.'), 'error');
             }
             else {
-              // success! tell them how to use this
-              drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
+              // try to write recipe to the file
+              $output = _drush_recipes_encode($recipe, 'json');
+              if (!file_put_contents("$location/$file", $output)) {
+                drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
+              }
+              else {
+                // success! tell them how to use this
+                drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
+              }
             }
           }
         }
@@ -756,7 +773,7 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   $commands = array();
   $list = explode(',', $list);
   if (empty($list)) {
-    drush_log('You must specify recipes to cook! try running drush dlr for a listing of commands', 'error');
+    drush_log('You must specify recipes to cook! try running drush dlr for a listing of commands to cook.', 'error');
     return FALSE;
   }
   $recipes = _drush_recipes_system_rebuild_recipe_data();
@@ -764,6 +781,13 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   if (empty($cook)) {
     drush_log('The recipes you have specified don\'t exist, try running drush dlr for a listing of available commands or use --dr-locations to include a location that might have the recipe you just tried to cook.', 'error');
     return FALSE;
+  }
+  // validate recipes we are going to cook are valid recipe formatted items
+  foreach ($cook as $recipe) {
+    if (!_drush_recipes_validate_recipe($recipe->drecipe)) {
+      // this wasn't a valid format
+      return drush_user_abort();
+    }
   }
   $dependencies = $conflicts = $weight = array();
   // ensure that they are listed based on weight to form a block chain
@@ -1033,10 +1057,18 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
  *
  * @return array decoded array from one of the formats listed.
  */
-function _drush_recipes_load_recipe($path) {
-  $contents = file_get_contents($path);
-  // ensure utf8 to avoid issues
-  $contents = utf8_encode($contents);
+function _drush_recipes_load_recipe($path, $validate = FALSE) {
+  // if we are attempting a validation we just want to try and load an item
+  // back and assert that it is the same as what was passed in
+  if ($validate) {
+    $contents = $path;
+  }
+  else {
+    // loading as usual, this is a recipe file
+    $contents = file_get_contents($path);
+    // ensure utf8 to avoid issues
+    $contents = utf8_encode($contents);
+  }
   // to avoid issues w/ format extension names we trickle down based on support
   $recipe = drush_json_decode($contents);
   // if empty, lets try a yaml parser
@@ -1114,7 +1146,7 @@ function _drush_recipes_array_to_xml($array, &$xml) {
  * @param  array $recipe  a recipe file fully loaded with recipe array
  * @param  bool  $recurse if the functionc all should be recursive
  * @param  bool  $list    if calls should be printed as they are found
- * @return array $drush   array of drush calls in order they should execute
+ * @return array $drush   array of drush calls in order they should cook
  */
 function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $list = TRUE) {
   // catch to make sure we don't fall into a deep infinite loop of recursive calls
@@ -1392,6 +1424,88 @@ function drush_choice_with_custom_defaults($options, $default_value, $prompt = '
     }
     return $default_array[2];
 }
+
+/**
+ * Drush command callback for drush-validate-recipes.
+ */
+function drush_drush_recipes_drush_validate_recipes($list = '') {
+  $commands = array();
+  $list = explode(',', $list);
+  if (empty($list)) {
+    drush_log('You must specify recipes to validate! try running drush dlr for a listing of commands to test.', 'error');
+    return FALSE;
+  }
+  $recipes = _drush_recipes_system_rebuild_recipe_data();
+  $validate = array_intersect_key($recipes, array_flip($list));
+  if (empty($validate)) {
+    drush_log('The recipes you have specified don\'t exist, try running drush dlr for a listing of available commands or use --dr-locations to include a location that might have the recipe you just tried to validate.', 'error');
+    return FALSE;
+  }
+  // validate recipes we are going to cook are valid recipe formatted items
+  foreach ($validate as $recipe) {
+    if (!_drush_recipes_validate_recipe($recipe->drecipe)) {
+      // this wasn't a valid format
+      return drush_user_abort();
+    }
+  }
+  return dt('All recipes were valid!');
+}
+
+/**
+ * Helper function to validate a drush recipe
+ */
+function _drush_recipes_validate_recipe($recipe) {
+  // check the API of this recipe and validate accordingly
+  switch ($recipe['drush_recipes_api']) {
+    case '1.0':
+      // catch rather insane things where people are building from scratch
+      // and potentially reference objects / data types we don't support
+      // rip the recipe to json
+      $original_recipe = _drush_recipes_encode($recipe, 'json');
+      // attempt to load the recipe from json
+      $loaded_recipe = _drush_recipes_load_recipe($original_recipe, TRUE);
+      // now load again off of this item that was just loaded in
+      $new_recipe = _drush_recipes_encode($loaded_recipe, 'json');
+      // attempt to load the recipe from json
+      $processed_recipe = _drush_recipes_encode(_drush_recipes_load_recipe($new_recipe, TRUE));
+      // if this item is IDENTICAL after being reloaded, then continue
+      if ($original_recipe == $processed_recipe) {
+        // now test the structure of the package
+
+        // ensure the required parts of the array are intact
+        if (!isset($recipe['name']) || !isset($recipe['recipe'])) {
+          drush_log(dt('name and recipe properties are required!'), 'error');
+          return FALSE;
+        }
+        // check for invalid properties, custom stuff belongs in metadata
+        // this helps ensure consistency and security
+        foreach ($recipe as $key => $value) {
+          switch($key) {
+            case 'name':
+            case 'drush_recipes_api':
+            case 'core':
+            case 'weight':
+            case 'conflicts':
+            case 'dependencies':
+            case 'recipe':
+            case 'metadata':
+              // do nothing, these are valid properties in 1.0
+            break;
+            default:
+              drush_log(dt('A property was defined that version 1.0 does not support!'), 'error');
+              return FALSE;
+            break;
+          }
+        }
+        return TRUE;
+      }
+      else {
+        drush_log(dt('Recipe format you attempted to import was corrupt! Check source'), 'error');
+      }
+  }
+  return FALSE;
+}
+
 /**
  * Drush command callback for drush-dl.
  */
