@@ -63,6 +63,20 @@ function drush_recipes_drush_command() {
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
+  /*$items['drush-dl'] = array(
+    'description' => dt('Simple download of something'),
+    'arguments' => array(
+      'url' => dt('A URL to download from.'),
+      'desintation' => dt('Destination to save the download'),
+      'cache_duration' => dt('How long til we check for a fresh copy, 0 is default'),
+    ),
+    'aliases' => array('dl'),
+    'examples' => array(
+      'drush drurl ' . DRUSH_RECIPES_DEFAULT_URL . '&uid=10' =>
+        'Display a list of recipes for user 10 from the drush.recipes service.',
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+  );*/
   $items['drush-write-recipe'] = array(
     'description' => dt('Interactive prompt to create a new recipe'),
     'aliases' => array('dwr'),
@@ -114,6 +128,8 @@ function drush_recipes_drush_help($section) {
       return dt('Create a recipe to calculate the diff between systems.');
     case 'drush:drush-cook-recipes':
       return dt('Perform a series of drush recipes');
+  /*  case 'drush:drush-dl':
+      return dt('Download a file from a url');*/
   }
 }
 
@@ -1358,3 +1374,15 @@ function drush_choice_with_custom_defaults($options, $default_value, $prompt = '
     }
     return $default_array[2];
 }
+/**
+ * Drush command callback for drush-dl.
+ */
+/*function drush_drush_recipes_drush_dl($url, $destination, $overwrite = TRUE) {
+  // attempt download and saving of file
+  if (_drush_download_file($url, $destination, $overwrite)) {
+    drush_print(dt('@url successfully saved to @dest', array('@url' => $url, '@dest' => $destination)));
+    return TRUE;
+  }
+  drush_print(dt('Download failed!'));
+  return FALSE;
+}*/
