@@ -16,12 +16,22 @@
 /**
  * Drush Recipe 1.0
  *
- * name - Human reable name of this recipe
+ * name - Human reable name of this recipe; required
  * drush_recipes_api - api version, 1.0 defaults
+ * core - drupal core this is compatible with, optional
  * weight - weight relative to other recipes if called in the same block-chain
  *   this defaults to 0
- * dependencies - modules required to use this, currently module en dependencies
- *   dictate this though in the future they will be enabled ahead of time.
+ * dependencies - drush plugin name, drush command, module names, or @site which
+ *   means that the command requires a working drupal site to function.
+ *   All four are valid dependency types and can be used together but try to
+ *   use @site, plugin name or module name when possible, drush command is lazy
+ *   and doesn't give good feedback to other developers as to how to meet the
+ *   requirement.
+ * conflicts - a list of recipes that are known conflicts. Use this if you are
+ *   building multiple recipes and you know that they don't play nice together.
+ *   This can help save you or others from accidentally trying to run recipes
+ *   that do and undo each others functionality (or a security recipe known
+ *   to have issues with something that opens up doors).
  * recipe - the structure of commands to execute, this can also be another
  *   recipe filename which will append all the commands in that file ahead of
  *   what is about to execute. There are 4 structures to this listed below
@@ -33,9 +43,13 @@ $js = <<<JS
   "name": "Security defaults",
   "drush_recipes_api": "1.0",
   "weight": 0,
+  "core": "7",
   "dependencies": [
     "seckit",
     "paranoia"
+  ],
+  "conflicts": [
+    "insecure_stuff"
   ],
   "recipe": [
     "dr_admin_update_status.drecipe",
@@ -69,7 +83,9 @@ $js = <<<JS
     "logo": "files\/image.png"
   }
 }
-JS;
+JS>>>;
+
+$js = <<<JS
 // here's the 4 major types of calls you can do in a recipe as of the 1.0 spec.
 "recipe": [
     "dr_admin_update_status.drecipe", // reference another recipe
@@ -95,3 +111,4 @@ JS;
     "options": ["y"] // any possible options
     ]
   ],
+JS>>>;
