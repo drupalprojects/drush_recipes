@@ -1,7 +1,11 @@
 {
 	"name": "D8 UX in D7",
 	"drush_recipes_api": "1.0",
+	"core": "7",
 	"weight": 0,
+	"conflicts": [
+		"d7adminux"
+  ],
 	"recipe": [
 		[
 			"en",

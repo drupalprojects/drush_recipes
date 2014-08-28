@@ -1,7 +1,11 @@
 {
   "name": "Drupal secure core settings",
   "drush_recipes_api": "1.0",
+  "core": "7",
   "weight": 0,
+  "dependencies": [
+    "@site"
+  ],
   "recipe": [
     [
       "vset",

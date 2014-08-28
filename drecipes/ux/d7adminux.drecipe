@@ -1,7 +1,11 @@
 {
 	"name": "D7 Admin UX",
 	"drush_recipes_api": "1.0",
+	"core": "7",
 	"weight": 0,
+	"conflicts": [
+		"d8ind7adminux"
+  ],
 	"recipe": [
 		"crufty_core_off.drecipe",
 		[

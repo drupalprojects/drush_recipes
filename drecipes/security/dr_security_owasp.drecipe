@@ -1,6 +1,7 @@
 {
   "name": "OWASP security modules",
   "drush_recipes_api": "1.0",
+  "core": "7",
   "weight": 0,
   "dependencies": [
       "security_review",

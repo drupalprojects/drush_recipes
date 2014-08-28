@@ -1,6 +1,7 @@
 {
   "name": "Security defaults",
   "drush_recipes_api": "1.0",
+  "core": "7",
   "weight": 0,
   "dependencies": [
     "seckit",
