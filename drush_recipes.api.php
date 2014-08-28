@@ -13,6 +13,107 @@
 // or
 // $options['dr_locations'] = array('/drushstuff', '/drecipes');
 
+// HOOKS
+
+/**
+ * Implements hook_drush_recipes_pre_cook_alter().
+ * A list of recipes to cook prior to their actual execution. This would allow
+ * you to act upon what has been requested and automatically add other recipes
+ * or modify based on your own needs.
+ * @param  array $list    a list of recipes to cook
+ * @param  bool $recurse  if we are recursing
+ */
+function hook_drush_recipes_pre_cook_alter(&$list, $recurse) {
+
+}
+
+/**
+ * Implements hook_drush_recipes_command_invoke_alter().
+ * This hook fires just prior to any command being executed in a drush recipe
+ * ingredient list. This fires per command listed and allows the developer to
+ * react to the command about to be fired for spidering, listening, and utterly
+ * ridiculous branching logic.
+ * @param  mixed  $command  a command array / string based on format
+ * @param  string $format   DRUSH_RECIPES_FORMAT_ARGUMENT or DRUSH_RECIPES_FORMAT_TARGET
+ */
+function hook_drush_recipes_command_invoke_alter(&$command, $format) {
+  // if you see an sql sync about to execute, we have other things to do
+  if ($command['command'] == 'sql-sync') {
+    // tap our github hooks / do a new git commit of whatever is laying around
+    // so that we can trip travis and get feedback about what's happening here
+  }
+}
+
+/**
+ * Implements hook_drush_recipes_post_cook_alter().
+ * This hook fires just after recipes have finished cooking. Since this function
+ * could be fired in a recursive manner this may invoke multiple times so be
+ * aware of when you are jumping into the operation.
+ * @param  array $list    a list of recipes to cook
+ * @param  bool $recurse  if we are recursing
+ */
+function hook_drush_recipes_post_cook_alter(&$list, $recurse) {
+
+}
+
+/**
+ * Implements hook_drush_recipes_locations_alter().
+ * Add custom locations for where to spider and look for drecipes.
+ * @param  array $locations an array of directories to search for recipes
+ */
+function hook_drush_recipes_locations_alter(&$locations) {
+
+}
+
+/**
+ * Implements hook_drush_recipes_system_recipe_data_alter().
+ * This allows you to modify the recipes that are loaded in from files just
+ * after they have been loaded in. You can use this to modify recipes or inject
+ * your own recipes that you want to add on the fly without the need for
+ * .drecipe files.
+ * @param  object $recipes loaded file objects referencing recipe arrays
+ */
+function hook_drush_recipes_system_recipe_data_alter(&$recipes) {
+
+}
+
+/**
+ * Implements hook_drush_recipes_after_recipe_loaded_alter().
+ * This allows for modification of a recipe just after it has been loaded from
+ * a flat file.
+ *
+ * @param  array $recipe a fully loaded array from a file without file object
+ */
+function hook_drush_recipes_after_recipe_loaded_alter(&$recipe) {
+
+}
+
+/**
+ * Implements hook_drush_recipes_to_drush_alter().
+ * This allows for modification of a recipe just before it is converted into
+ * drush statements. You could use this to jump in and inject ingredients based
+ * on what you see in the current recipe or remove commands that you don't like
+ * firing (like a complex security routine where you like all but 1 setting).
+ *
+ * @param  array $recipe a recipe structure being converted to drush statements
+ */
+function hook_drush_recipes_to_drush_alter(&$recipe) {
+
+}
+
+/**
+ * Implements hook_drush_recipes_encode_alter().
+ * This allows for modifying the output just before it is typically written to
+ * a file or printed to the screen.
+ *
+ * @param  string $contents  output of a recipe for export
+ * @param  string $format    format of the export data; json, xml, or yaml
+ */
+function hook_drush_recipes_encode_alter(&$contents, $format) {
+
+}
+
+
 /**
  * Drush Recipe 1.0
  *

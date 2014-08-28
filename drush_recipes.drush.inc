@@ -776,6 +776,9 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
     drush_log('You must specify recipes to cook! try running drush dlr for a listing of commands to cook.', 'error');
     return FALSE;
   }
+  // allow projects to alter the list
+  drush_command_invoke_all_ref('drush_recipes_pre_cook_alter', $list, $recurse);
+
   $recipes = _drush_recipes_system_rebuild_recipe_data();
   $cook = array_intersect_key($recipes, array_flip($list));
   if (empty($cook)) {
@@ -849,6 +852,7 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
           // test for complex process invoking
           if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
             drush_log('Adding ingredient: ' . $command['command'], 'ok');
+            drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_TARGET);
             drush_invoke_process($command[DRUSH_RECIPES_FORMAT_TARGET], $command['command'], $command['args'], $command['options']);
           }
           else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
@@ -869,6 +873,7 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
         else {
           drush_log('Adding ingredient: ' . $command, 'ok');
           $command .= ' --y';
+          drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_ARGUMENT);
           // this is the simple method for running when non interactive
           drush_shell_exec($command);
           $shell_output = drush_shell_exec_output();
@@ -883,6 +888,8 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   else {
     return drush_user_abort();
   }
+  // allow projects to react after cooking
+  drush_command_invoke_all_ref('drush_recipes_post_cook_alter', $list, $recurse);
 }
 
 /**
@@ -947,6 +954,8 @@ function _drush_recipes_system_rebuild_recipe_data() {
       $locations[] = $_ENV['DR_LOCATIONS'];
     }
   }
+  // allow projects to inject their own locations
+  drush_command_invoke_all_ref('drush_recipes_locations_alter', $locations);
 
   $recipes = array();
   // file preg_match pattern
@@ -980,6 +989,8 @@ function _drush_recipes_system_rebuild_recipe_data() {
     $recipes[$key]->drecipe = $recipe->drecipe + $defaults;
     krsort($recipes[$key]->drecipe);
   }
+  // allow last minute recipe data modification
+  drush_command_invoke_all_ref('drush_recipes_system_recipe_data_alter', $recipes);
   return $recipes;
 }
 
@@ -1086,6 +1097,7 @@ function _drush_recipes_load_recipe($path, $validate = FALSE) {
     drush_log(dt('There is a problem with the recipe located at @file', array('@file' => $path)), 'error');
     return FALSE;
   }
+  drush_command_invoke_all_ref('drush_recipes_after_recipe_loaded_alter', $recipe);
   return $recipe;
 }
 
@@ -1095,6 +1107,8 @@ function _drush_recipes_load_recipe($path, $validate = FALSE) {
  * @return array encoded contents for export.
  */
 function _drush_recipes_encode($contents, $format = 'json') {
+  // allow other advanced tweaks just prior to encoding
+  drush_command_invoke_all_ref('drush_recipes_encode_alter', $contents, $format);
   switch ($format) {
     case 'json':
       return _drush_recipes_pretty_json(drush_json_encode($contents));
@@ -1144,11 +1158,13 @@ function _drush_recipes_array_to_xml($array, &$xml) {
 /**
  * convert a recipe array to drush calls
  * @param  array $recipe  a recipe file fully loaded with recipe array
+ * @param  int   $indent  the level to indent / levels of recursion down
  * @param  bool  $recurse if the functionc all should be recursive
  * @param  bool  $list    if calls should be printed as they are found
  * @return array $drush   array of drush calls in order they should cook
  */
 function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $list = TRUE) {
+  drush_command_invoke_all_ref('drush_recipes_to_drush_alter', $recipe);
   // catch to make sure we don't fall into a deep infinite loop of recursive calls
   if ($indent > DRUSH_RECIPES_MAX_RECURSION) {
     // tell people in the event they triggered this and are confused
