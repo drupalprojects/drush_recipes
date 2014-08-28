@@ -45,6 +45,23 @@ function hook_drush_recipes_command_invoke_alter(&$command, $format) {
 }
 
 /**
+ * Implements hook_drush_recipes_FORMAT_command_invoke_alter().
+ * This hook fires just prior to a specifically formatted command command being
+ * executed in a drush recipe ingredient list. This is the same as above but
+ * more memory performant and a prefered method of invoking this hook unless
+ * you REALLY want to parse every command type.
+ * @param  mixed  $command  a command array / string based on format
+ * @param  string $format   DRUSH_RECIPES_FORMAT_ARGUMENT or DRUSH_RECIPES_FORMAT_TARGET
+ */
+function hook_drush_recipes_FORMAT_command_invoke_alter(&$command) {
+  // if you see an sql sync about to execute, we have other things to do
+  if ($command['command'] == 'sql-sync') {
+    // tap our github hooks / do a new git commit of whatever is laying around
+    // so that we can trip travis and get feedback about what's happening here
+  }
+}
+
+/**
  * Implements hook_drush_recipes_post_cook_alter().
  * This hook fires just after recipes have finished cooking. Since this function
  * could be fired in a recursive manner this may invoke multiple times so be
@@ -200,16 +217,59 @@ $js = <<<JS
         "recipe1.drecipe",
         "recipe2.drecipe",
         "recipe3.drecipe"
-      ]
+      ],
+      "prompt": "Which recipe would you like to execute?"
     ],
     [// long call format, this allows user to interact w/ the call
-    // only use this for complex call structures that you need to interact with
-    "target": "cool.d7.site", //target
-    "arguments": [ // arguments to pass in, similar to simple structure
-      "en",
-      "paranoia"
+     // only use this for complex call structures that you need to interact with
+      "target": "cool.d7.site", // target
+      "command": "en", // command to issue
+      "arguments": [ // arguments to pass in, similar to simple structure
+        "paranoia"
+      ],
+      "options": ["y"] // any possible options
     ],
-    "options": ["y"] // any possible options
+    [// madlib call format, this gets pretty intense but opens a lot of doors
+      "madlib": [
+        "target": "", // target
+        "command": "si", // command to issue
+        "arguments": [ // arguments to pass in, similar to simple structure
+          "[profile]"
+        ],
+        "options": [
+          "db-url": "[db-url]",
+          "db-prefix": "[db-prefix]",
+          "db-su": "[db-su]",
+          "db-su-pw": "[db-su-pw]",
+          "account-name": "[account-name]",
+          "account-pass": "[account-pass]",
+          "account-mail": "[account-mail]",
+          "locale": "[locale]",
+          "clean-url": "[clean-url]",
+          "site-name": "[site-name]",
+          "site-mail": "[site-mail]",
+          "sites-subdir": "[sites-subdir]"
+        ]
+      ],
+      "tokens": [
+        "[profile]": "the install profile you wish to run. defaults to 'default' in D6, 'standard' in D7+",
+        "[db-prefix]": "",
+        "[db-url]": 'Enter the database url in the format of mysql://dbusername:dbpassword@localhost:port/dbname',
+        "[db-su]": 'Root level mysql user (this information is not saved)',
+        "[db-su-pw]": 'account password (this information is not saved)',
+        "[account-name]": 'uid1 name. Defaults to admin',
+        "[account-pass]": 'uid1 pass. Defaults to a randomly generated password. If desired, set a fixed password in drushrc.php.',
+        "[account-mail]": 'uid1 email. Defaults to admin@example.com',
+        "[locale]": 'A short language code. Sets the default site language. Language files must already be present. You may use download command to get them.',
+        "[clean-url]": 'Defaults to 1',
+        "[site-name]": 'Defaults to Site-Install',
+        "[sites-mail]": 'From: for system mailings. Defaults to admin@example.com',
+        "[sites-subdir]": "Name of directory under 'sites' which should be created. Only needed when the subdirectory does not already exist. Defaults to 'default'"
+      ],
+      "defaults": [
+        "[profile]": "minimal",
+        "[sitename]": "Your new drupal site"
+      ]
     ]
   ],
 JS>>>;
