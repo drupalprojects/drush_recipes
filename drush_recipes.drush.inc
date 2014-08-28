@@ -539,9 +539,15 @@ function drush_drush_recipes_drush_write_recipe() {
     }
   }
   $name = drush_prompt(dt('Enter recipe name'));
-  // description and version are optional
+  // description, version, weight and core are optional
   $description = drush_prompt(dt('Enter a description'), NULL, FALSE);
   $version = drush_prompt(dt('Enter version'), '1.0');
+  $weight = drush_prompt(dt('Weight'), '0');
+  // description and version are optional
+  if (!$major_version = drush_drupal_major_version()) {
+    $marjor_version = DRUSH_RECIPES_CORE_COMPATIBILITY;
+  }
+  $core = drush_prompt(dt('Drupal core'), $marjor_version);
   $recipe_types = array(
     1 => 'add-on',
     2 => 'routine',
@@ -620,7 +626,8 @@ function drush_drush_recipes_drush_write_recipe() {
   $recipe = array(
     'name' => $name,
     'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
-    'weight' => 0,
+    'weight' => $weight,
+    'core' => $core,
     'recipe' => $items,
     'metadata' => array(
       'type' => $type,
