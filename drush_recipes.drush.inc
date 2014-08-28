@@ -24,6 +24,7 @@ define('DRUSH_RECIPES_DEFAULT_URL', 'http://drush.recipes/recipes.xml');
 // listing of the types of drush recipe formats we support
 define('DRUSH_RECIPES_FORMAT_REFERENCE', 'reference');
 define('DRUSH_RECIPES_FORMAT_TARGET', 'target');
+define('DRUSH_RECIPES_FORMAT_MADLIB', 'madlib');
 define('DRUSH_RECIPES_FORMAT_CONDITIONAL', 'conditional');
 define('DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION', 'prompt');
 define('DRUSH_RECIPES_FORMAT_ARGUMENT', 'argument');
@@ -852,8 +853,19 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
           // test for complex process invoking
           if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
             drush_log('Adding ingredient: ' . $command['command'], 'ok');
+            // allow for generic overriding of this command
             drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_TARGET);
-            drush_invoke_process($command[DRUSH_RECIPES_FORMAT_TARGET], $command['command'], $command['args'], $command['options']);
+            // allow for targetted type overriding
+            drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_TARGET . '_command_invoke_alter', $command);
+            drush_invoke_process($command['target'], $command['command'], $command['args'], $command['options']);
+          }
+          else if (isset($command[DRUSH_RECIPES_FORMAT_MADLIB])) {
+            drush_log('Adding (Madlib) ingredient: ' . $command[DRUSH_RECIPES_FORMAT_MADLIB]['command'], 'ok');
+            // allow for generic overriding of this command
+            drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_MADLIB);
+            // allow for targetted type overriding
+            drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_MADLIB . '_command_invoke_alter', $command);
+            drush_invoke_process($command[DRUSH_RECIPES_FORMAT_MADLIB]['target'], $command[DRUSH_RECIPES_FORMAT_MADLIB]['command'], $command[DRUSH_RECIPES_FORMAT_MADLIB]['args'], $command[DRUSH_RECIPES_FORMAT_MADLIB]['options']);
           }
           else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
             // shift array keys forward if 0 is set to avoid issues
@@ -873,7 +885,10 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
         else {
           drush_log('Adding ingredient: ' . $command, 'ok');
           $command .= ' --y';
+          // allow for generic overriding of this command
           drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_ARGUMENT);
+          // allow for targetted type overriding
+          drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_ARGUMENT . '_command_invoke_alter', $command);
           // this is the simple method for running when non interactive
           drush_shell_exec($command);
           $shell_output = drush_shell_exec_output();
@@ -1207,11 +1222,24 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
           $drush[] = $print;
         }
       break;
+      case DRUSH_RECIPES_FORMAT_MADLIB:
+        $drush[] = $call;
+        // see if we should print nicely formatted debug stuff
+        if ($list) {
+          // format the same as target based
+          $print = 'drush ' . $call['target'] . ' ' . $call['command'] . ' ' . implode(' ', $call['arguments']);
+          if (isset($call['options']) && !empty($call['options'])) {
+            // make sure first option gets the dashes it needs
+            $print .= '--' . implode(' --', $call['options']);
+          }
+          drush_print(_drush_recipes_indent($indent+1) . $print);
+        }
+      break;
       case DRUSH_RECIPES_FORMAT_TARGET:
         $drush[] = $call;
         // see if we should print nicely formatted debug stuff
         if ($list) {
-          $print = 'drush ' . $call['target'] . implode(' ', $call['arguments']);
+          $print = 'drush ' . $call['target'] . ' ' . $call['command'] . ' ' . implode(' ', $call['arguments']);
           if (isset($call['options']) && !empty($call['options'])) {
             // make sure first option gets the dashes it needs
             $print .= '--' . implode(' --', $call['options']);
@@ -1332,11 +1360,36 @@ function _drush_recipes_detect_format($call) {
   if (isset($call[DRUSH_RECIPES_FORMAT_TARGET])) {
     return DRUSH_RECIPES_FORMAT_TARGET;
   }
+  else if (isset($call[DRUSH_RECIPES_FORMAT_MADLIB])) {
+    return DRUSH_RECIPES_FORMAT_MADLIB;
+  }
   else if (isset($call[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
     return DRUSH_RECIPES_FORMAT_CONDITIONAL;
   }
   // fallback case is that it's an array of arguments
   return DRUSH_RECIPES_FORMAT_ARGUMENT;
+}
+
+/**
+ * Implements hook_drush_recipes_FORMAT_command_invoke_alter().
+ */
+function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
+  // loop through tokens requesting input from the user
+  foreach ($command['tokens'] as $token => $description) {
+    $default = NULL;
+    // see if we have a supplied default if the user is skipping through
+    if (isset($command['defaults'][$token])) {
+      $default = $command['defaults'][$token];
+    }
+    $selection[$key] = drush_prompt(dt($description), $default);
+  }
+  //@todo match up the $command['madlib'] command with
+  //foreach ($selection as $token => $value) {
+  //}
+  // == [DRUSH_RECIPES_FORMAT_MADLIB]['target']
+  // == [DRUSH_RECIPES_FORMAT_MADLIB]['command']
+  // array_key_search [DRUSH_RECIPES_FORMAT_MADLIB]['arguments']
+  // array_key_search [DRUSH_RECIPES_FORMAT_MADLIB]['options']
 }
 
  /**
