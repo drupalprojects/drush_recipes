@@ -769,8 +769,8 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   // ensure that they are listed based on weight to form a block chain
   foreach ($cook as $key => $recipe) {
     $weight[$key]  = $recipe->drecipe['weight'];
-    array_merge($dependencies,(isset($recipe->drecipe['dependencies']) ? $recipe->drecipe['dependencies'] : array()));
-    array_merge($conflicts,(isset($recipe->drecipe['conflicts']) ? $recipe->drecipe['conflicts'] : array()));
+    $dependencies = array_merge($dependencies,(isset($recipe->drecipe['dependencies']) ? $recipe->drecipe['dependencies'] : array()));
+    $conflicts = array_merge($conflicts,(isset($recipe->drecipe['conflicts']) ? $recipe->drecipe['conflicts'] : array()));
   }
   // Sort the data with weight descending
   array_multisort($weight, SORT_ASC, $cook);
@@ -779,35 +779,46 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
     foreach ($cook as $recipe) {
       if ($recipe->name == $conflict) {
         drush_log(dt('Recipes could not be run, @name is listed as a known conflict of one of the included recipes. Review the conflict and try again.', array('@name' => $recipe->name)), 'error');
-        drush_user_abort();
+        return drush_user_abort();
       }
     }
   }
   // ensure dependencies are met
-  /*foreach ($dependencies as $dependency) {
-    // @todo test for listed dependencies using drush functions somehow
-    // dependencies can be both drupal modules as well as drush plugins
-    // in the case of drush RR registry_rebuild is required
-    if () {
-      drush_log(dt('Recipes could not be run, @name is listed as a known conflict of one of the included recipes. Review the conflict and try again.', array('@name' => $recipe->name)), 'error');
-      // allow them to force download these commands
-      if () {
-
+  $notmet = array();
+  // build a list of what plugins supply what commands
+  $commandlist = drush_get_commands();
+  foreach ($commandlist as $command) {
+    $drush_projects[] = $command['commandfile'];
+  }
+  foreach ($dependencies as $dependency) {
+    if (drush_is_command($dependency) || in_array($dependency, $drush_projects) || (function_exists('module_exists') && module_exists($dependency)) || (function_exists('module_exists') && $dependency == '@site')) {
+      // do nothing, this command exists in some fashion
+    }
+    else {
+      // if we require a working site and didn't get one fail immediately
+      if ($dependency == '@site') {
+        drush_print(dt('This requires a working drupal site to function!'));
+        return drush_user_abort();
       }
       else {
-        drush_user_abort();
+        $notmet[] = $dependency;
       }
     }
-  }*/
+  }
+  // if anything has failed then we need to tell the user why it didn't run
+  if (!empty($notmet)) {
+    drush_log(dt("Recipes could not be cooked because the following dependencies have not been met:\n@name\nTry:\ndrush dl @dls\n\nOr did you maybe mean to run this against a site target?", array('@name' => implode("\n", $notmet), '@dls' => implode(',', $notmet))), 'error');
+    return drush_user_abort();
+  }
 
-  // convert cooking list into commands to execute
+  // convert cooking list into commands to run
   drush_print("\n" . dt('Ingredients list to cook: @list', array('@list' => implode(',', $list))));
   $recipe_list = array();
   foreach ($cook as $recipe) {
     $recipe_list[] = _drush_recipes_recipe_to_drush($recipe);
   }
   // confirm cooking as this can be a ton of drush commands
-  if ($recurse || drush_confirm('Are you sure you want to execute these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
+  if ($recurse || drush_confirm('Are you sure you want to cook these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
     foreach ($recipe_list as $commands) {
       foreach ($commands as $command) {
         if (is_array($command)) {
