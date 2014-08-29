@@ -560,7 +560,7 @@ function drush_drush_recipes_drush_write_recipe() {
   // description, version, weight and core are optional
   $description = drush_prompt(dt('Enter a description'), NULL, FALSE);
   $version = drush_prompt(dt('Enter version'), '1.0');
-  $weight = drush_prompt(dt('Weight'), '0');
+  $weight = drush_prompt(dt('Weight'), '0', FALSE);
   // description and version are optional
   if (!$major_version = drush_drupal_major_version()) {
     $marjor_version = DRUSH_RECIPES_CORE_COMPATIBILITY;
