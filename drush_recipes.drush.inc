@@ -156,6 +156,12 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
     $destination = $source;
     $source = $alias;
   }
+  // test for null case target diffing via lazy method
+  if ((empty($destination) || $destination == '@none') && isset($source)) {
+    $destination = $source;
+    $source = '@none';
+  }
+
   // preflight destination in case it defines the alias used by the source
   _drush_sitealias_get_record($destination);
   // after preflight, get source and destination settings
@@ -164,7 +170,6 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   // apply command-specific options.
   drush_sitealias_command_default_options($source_settings, 'source-');
   drush_sitealias_command_default_options($destination_settings, 'target-');
-
   // select module / themes / profiles in use via system table
   $fields = array('name', 'type', 'status');
   $source_system = _drush_recipes_load_db_table($source_settings, 'system', 'name', $fields);
@@ -202,7 +207,6 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       }
     }
   }
-
   // do a variable comparison
   $source_vars = _drush_recipes_load_db_table($source_settings, 'variable', 'name');
   $destination_vars = _drush_recipes_load_db_table($destination_settings, 'variable', 'name');
@@ -229,20 +233,26 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       $drush['vset'][$name] = $data->value;
     }
   }
-
   // compare permissions and roles
   // load up the source db / roles / permissions
-  _drush_recipes_db_set_active($source_settings);
-  drupal_static_reset('user_role_permissions');
-  $source_roles = user_roles();
-  $source_perms = user_role_permissions($source_roles);
-  _drush_recipes_db_set_active($destination_settings);
+  if ($source_settings['#name'] == 'none') {
+    $source_roles = array();
+    $source_perms = array();
+  }
+  else {
+    _drush_recipes_db_set_active($source_settings);
+    drupal_static_reset('user_role_permissions');
+    $source_roles = user_roles();
+    $source_perms = user_role_permissions($source_roles);
+  }
   // load up the destination db / roles / permissions
+  _drush_recipes_db_set_active($destination_settings);
   drupal_static_reset('user_role_permissions');
   $destination_roles = user_roles();
   $destination_perms = user_role_permissions($destination_roles);
   // return to default just to be safe
   db_set_active();
+
   // comparison, this can be a bit evil..
   foreach ($source_perms as $rid => $permissions) {
     // ensure variable A exists on B
@@ -373,10 +383,10 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       'recipe' => $calls,
       'metadata' => array(
         'type' => 'utility',
-        'description' => 'This is an automatically produced recipe',
+        'description' => dt('This is an automatically produced recipe using the DDT command'),
       )
     );
-
+    // list the formats allowed
     $formats = array(
       'json' => 'json',
       'xml' => 'xml'
@@ -431,6 +441,10 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
  * @return array an array of database info
  */
 function _drush_recipes_load_db_table($alias_settings, $table, $key, $fields = '*') {
+  // skip out early if this isn't against a target
+  if ($alias_settings['#name'] == 'none') {
+    return array();
+  }
   _drush_recipes_db_set_active($alias_settings);
   $ary = array();
   // selec the fields from the table and convert to an array of values
