@@ -330,6 +330,7 @@ $js = <<<JS
     ],
     [// madlib call format, this gets pretty intense but opens a lot of doors
       "madlib": [
+        "madlib": "TRUE", // required to detect madlib spec
         "target": "", // target
         "command": "si", // command to issue
         "arguments": [ // arguments to pass in, similar to simple structure
@@ -348,27 +349,26 @@ $js = <<<JS
           "site-name": "[site-name]",
           "site-mail": "[site-mail]",
           "sites-subdir": "[sites-subdir]"
+        ],
+        "tokens": [
+          "[profile]": "the install profile you wish to run. defaults to 'default' in D6, 'standard' in D7+",
+          "[db-prefix]": "",
+          "[db-url]": 'Enter the database url in the format of mysql://dbusername:dbpassword@localhost:port/dbname',
+          "[db-su]": 'Root level mysql user (this information is not saved)',
+          "[db-su-pw]": 'account password (this information is not saved)',
+          "[account-name]": 'uid1 name. Defaults to admin',
+          "[account-pass]": 'uid1 pass. Defaults to a randomly generated password. If desired, set a fixed password in drushrc.php.',
+          "[account-mail]": 'uid1 email. Defaults to admin@example.com',
+          "[locale]": 'A short language code. Sets the default site language. Language files must already be present. You may use download command to get them.',
+          "[clean-url]": 'Defaults to 1',
+          "[site-name]": 'Defaults to Site-Install',
+          "[sites-mail]": 'From: for system mailings. Defaults to admin@example.com',
+          "[sites-subdir]": "Name of directory under 'sites' which should be created. Only needed when the subdirectory does not already exist. Defaults to 'default'"
+        ],
+        "defaults": [
+          "[profile]": "minimal",
+          "[sitename]": "Your new drupal site"
         ]
-      ],
-      "tokens": [
-        "[profile]": "the install profile you wish to run. defaults to 'default' in D6, 'standard' in D7+",
-        "[db-prefix]": "",
-        "[db-url]": 'Enter the database url in the format of mysql://dbusername:dbpassword@localhost:port/dbname',
-        "[db-su]": 'Root level mysql user (this information is not saved)',
-        "[db-su-pw]": 'account password (this information is not saved)',
-        "[account-name]": 'uid1 name. Defaults to admin',
-        "[account-pass]": 'uid1 pass. Defaults to a randomly generated password. If desired, set a fixed password in drushrc.php.',
-        "[account-mail]": 'uid1 email. Defaults to admin@example.com',
-        "[locale]": 'A short language code. Sets the default site language. Language files must already be present. You may use download command to get them.',
-        "[clean-url]": 'Defaults to 1',
-        "[site-name]": 'Defaults to Site-Install',
-        "[sites-mail]": 'From: for system mailings. Defaults to admin@example.com',
-        "[sites-subdir]": "Name of directory under 'sites' which should be created. Only needed when the subdirectory does not already exist. Defaults to 'default'"
-      ],
-      "defaults": [
-        "[profile]": "minimal",
-        "[sitename]": "Your new drupal site"
       ]
-    ]
-  ],
+    ],
 JS>>>;
