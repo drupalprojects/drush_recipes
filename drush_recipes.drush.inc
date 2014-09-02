@@ -20,6 +20,8 @@ define('DRUSH_RECIPE_EXTENSION', 'drecipe');
 define('DRUSH_RECIPES_API_VERSION', '1.0');
 define('DRUSH_RECIPES_CORE_COMPATIBILITY', '7');
 define('DRUSH_RECIPES_MAX_RECURSION', 5);
+define('DRUSH_RECIPES_INVALID', FALSE);
+define('DRUSH_RECIPES_VALID', TRUE);
 define('DRUSH_RECIPES_DEFAULT_URL', 'http://drush.recipes/recipes.xml');
 // listing of the types of drush recipe formats we support
 define('DRUSH_RECIPES_FORMAT_REFERENCE', 'reference');
@@ -896,6 +898,15 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             drush_drush_recipes_drush_cook_recipes(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $which), TRUE);
           }
         }
+        // allow for custom format or else assume argument based
+        else if (isset($call['_drush_recipes_custom_format'])) {
+          // allow for generic overriding of this command
+          drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, $call['_drush_recipes_custom_format']);
+          // we put a lot of faith in the developer to know why they just did
+          // all this but it will allow for custom call structures beyond those
+          // provided by the base plugin
+          drush_command_invoke_all_ref('drush_recipes_' . $call['_drush_recipes_custom_format'] . '_command_invoke_alter', $command);
+        }
         else {
           drush_log('Adding ingredient: ' . $command, 'ok');
           $command .= ' --y';
@@ -1275,6 +1286,13 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
           drush_print(_drush_recipes_indent($indent+1) . 'drush ' . implode(' ', $call));
         }
       break;
+      default:
+        // we didn't pass any of the known recipe specifications
+        // this could be because you know what you are doing and are writing
+        // your own drush recipes plugin. In the future we'll have an actual
+        // plugin architecture but for now we just provide hook support
+        drush_command_invoke_all_ref('drush_recipes_to_drush_command_format_alter', $drush, $call, $format, $list);
+      break;
     }
   }
   if ($list && $indent === 1) {
@@ -1379,6 +1397,11 @@ function _drush_recipes_detect_format($call) {
   }
   else if (isset($call[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
     return DRUSH_RECIPES_FORMAT_CONDITIONAL;
+  }
+  // allow other developers to write their own formats
+  drush_command_invoke_all_ref('drush_recipes_detect_format_alter', $call);
+  if (isset($call['_drush_recipes_custom_format'])) {
+    return $call['_drush_recipes_custom_format'];
   }
   // fallback case is that it's an array of arguments
   return DRUSH_RECIPES_FORMAT_ARGUMENT;

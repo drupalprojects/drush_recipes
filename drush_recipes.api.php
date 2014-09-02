@@ -130,6 +130,54 @@ function hook_drush_recipes_encode_alter(&$contents, $format) {
 
 }
 
+/**
+ * Implements hook_drush_recipes_to_drush_command_format_alter().
+ * @param  array  $drush  a series of drush commands for the recipe to process
+ * @param  array  $call   the current ingredient structure from one call
+ * @param  string $format a custom call format machine name
+ * @param boolean $list   boolean of whether we are listing to the screen
+ */
+function hook_drush_recipes_to_drush_command_format_alter(&$drush, $call, $format, $list) {
+  // this can be used to help setup what to do with the recipe that's being
+  // passed in. This fires prior to running the command at the printing to screen
+  // phase when it's going to tell the user what is about to be run. Use this
+  // when you have a custom recipe format like the one below.
+  if ($format == 'btools') {
+    $drush[] = $call['superadvancedcallstructureforthesakeofbeingadvanced'];
+    if ($list) {
+      drush_print('About to execute the super secret custom CMS cluster project known as the btools library. That every site needs but almost no one understands.');
+    }
+  }
+}
+
+/**
+ * Implements hook_drush_recipes_detect_format_alter().
+ * @param  array $call   the call structure about to be processed
+ * @param  string $format machine name format of this call structure
+ */
+function hook_drush_recipes_detect_format_alter(&$call, $format) {
+  // this can be used to define new call formats currently not in the drush
+  // recipes specification. Use this to allow drush_recipes to detect that
+  // you are providing your own call structure. The only requirement is that
+  // in the call sturcture you set $call['_drush_recipes_custom_format']
+  // to the machine_name that you want to name your format. an example is
+  // provided below.
+  $call['_drush_recipes_custom_format'] = 'btools';
+}
+
+// this is an example of how you could practically apply the above super secret
+// call structure format for btools
+function CUSTOMPLUGIN_drush_recipes_btools_command_invoke_alter(&$command) {
+  drush_log('Adding super ingredient: ' . $call['superadvancedcallstructureforthesakeofbeingadvanced']['name'], 'ok');
+  // this is the simple method for running when non interactive
+  drush_shell_exec($call['superadvancedcallstructureforthesakeofbeingadvanced']['evilcommandnooneunderstands']);
+  $shell_output = drush_shell_exec_output();
+  // print whatever came out of that super secret and misunderstood shell command
+  foreach ($shell_output as $shell) {
+    drush_print($shell);
+  }
+  drush_log($call['superadvancedcallstructureforthesakeofbeingadvanced']['name'] . ' probably didn\'t complete but developers everywhere would be wow\'ed that you event attempted those sweet lines of code!', 'warning');
+}
 
 /**
  * Drush Recipe 1.0
