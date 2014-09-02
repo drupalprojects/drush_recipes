@@ -1538,55 +1538,68 @@ function drush_drush_recipes_drush_validate_recipes($list = '') {
  * Helper function to validate a drush recipe
  */
 function _drush_recipes_validate_recipe($recipe) {
+  // generic validation that it can be loaded and reloaded from source
+  // encode the recipe to json
+  $original_recipe = _drush_recipes_encode($recipe, 'json');
+  // attempt to load the recipe from json
+  $loaded_recipe = _drush_recipes_load_recipe($original_recipe, TRUE);
+  // now load again off of this item that was just loaded in
+  $new_recipe = _drush_recipes_encode($loaded_recipe, 'json');
+  // attempt to load the recipe from json
+  $processed_recipe = _drush_recipes_encode(_drush_recipes_load_recipe($new_recipe, TRUE));
+  // if this item is not IDENTICAL after being reloaded it must be corrupt
+  if ($original_recipe != $processed_recipe) {
+     drush_log(dt('Recipe format you attempted to import was corrupt! Check source'), 'error');
+     return DRUSH_RECIPES_INVALID;
+  }
+  // ensure the major api version is set
+  if (!isset($recipe['drush_recipes_api'])) {
+    drush_log(dt('All recipes must include the `drush_recipes_api` property. Please review drush_recipes.api.php if building a complex recipe by hand.'), 'error');
+     return DRUSH_RECIPES_INVALID;
+  }
   // check the API of this recipe and validate accordingly
   switch ($recipe['drush_recipes_api']) {
-    case '1.0':
-      // catch rather insane things where people are building from scratch
-      // and potentially reference objects / data types we don't support
-      // rip the recipe to json
-      $original_recipe = _drush_recipes_encode($recipe, 'json');
-      // attempt to load the recipe from json
-      $loaded_recipe = _drush_recipes_load_recipe($original_recipe, TRUE);
-      // now load again off of this item that was just loaded in
-      $new_recipe = _drush_recipes_encode($loaded_recipe, 'json');
-      // attempt to load the recipe from json
-      $processed_recipe = _drush_recipes_encode(_drush_recipes_load_recipe($new_recipe, TRUE));
-      // if this item is IDENTICAL after being reloaded, then continue
-      if ($original_recipe == $processed_recipe) {
-        // now test the structure of the package
-
-        // ensure the required parts of the array are intact
-        if (!isset($recipe['name']) || !isset($recipe['recipe'])) {
-          drush_log(dt('name and recipe properties are required!'), 'error');
-          return FALSE;
-        }
-        // check for invalid properties, custom stuff belongs in metadata
-        // this helps ensure consistency and security
-        foreach ($recipe as $key => $value) {
-          switch($key) {
-            case 'name':
-            case 'drush_recipes_api':
-            case 'core':
-            case 'weight':
-            case 'conflicts':
-            case 'dependencies':
-            case 'recipe':
-            case 'metadata':
-              // do nothing, these are valid properties in 1.0
-            break;
-            default:
-              drush_log(dt('A property was defined that version 1.0 does not support!'), 'error');
-              return FALSE;
-            break;
-          }
-        }
-        return TRUE;
+    // in the future we can add additional support for future specs
+    case DRUSH_RECIPES_API_VERSION:
+      // ensure the required parts of the array are intact
+      if (!isset($recipe['name']) || !isset($recipe['recipe'])) {
+        drush_log(dt('name and recipe properties are required!'), 'error');
+        return DRUSH_RECIPES_INVALID;
       }
-      else {
-        drush_log(dt('Recipe format you attempted to import was corrupt! Check source'), 'error');
+      // check for invalid properties, custom stuff belongs in metadata
+      // this helps ensure consistency and security
+      foreach ($recipe as $key => $value) {
+        switch($key) {
+          case 'name':
+          case 'drush_recipes_api':
+          case 'core':
+          case 'weight':
+          case 'conflicts':
+          case 'dependencies':
+          case 'recipe':
+          case 'metadata':
+            // do nothing, these are valid properties in 1.0
+          break;
+          default:
+            drush_log(dt('A property was defined that version @api does not support!', array('@api' => DRUSH_RECIPES_API_VERSION)), 'error');
+            return DRUSH_RECIPES_INVALID;
+          break;
+        }
       }
+      // nothing was able to invalidate the recipe so assumption it is safe
+      return DRUSH_RECIPES_VALID;
+    break;
+    default:
+      // a specification verison is being defined that we don't know about yet
+      // this either signals someone building against their own verison of
+      // the spec or that a recipe is corrupt because it has the wrong version
+      // number
+      drush_log(dt('The supplied API version number of @api is not currently known to the drush recipes plugin. Validation can\'t happen as a result but this is not preventing it from running as you may know why you are doing this (like experimenting with a new API method).', array('@api' => $recipe['drush_recipes_api'])), 'warning');
+      return DRUSH_RECIPES_VALID;
+    break;
   }
-  return FALSE;
+  // we got here, something went wrong
+  return DRUSH_RECIPES_INVALID;
 }
 
 /**
