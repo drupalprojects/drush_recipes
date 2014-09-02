@@ -131,6 +131,57 @@ function hook_drush_recipes_encode_alter(&$contents, $format) {
 }
 
 /**
+ * Implements hook_drush_recipes_target_diff_drush_alter().
+ * @param  array $drush                array of drush calls to write to recipe
+ * @param  array $source_settings      alias / db settings for source
+ * @param  array $destination_settings alias / db setings for destination
+ */
+function hook_drush_recipes_target_diff_drush_alter(&$drush, $source_settings, $destination_settings) {
+  // you can use this to add support for custom tables or figuring out the
+  // difference in other values that we currently don't support / are
+  // very specific to your development workflow.
+
+  // For example, maybe you override a variable in settings.php related to
+  // which environment you are on. You could forcibly unset the value in the
+  // event that it got written to the variables table earlier.
+
+  // For custom tables you are doing direct comparisons against you can use the
+  // _drush_recipes_load_db_table() function which is a helper for pulling a
+  // database table from drupal given settings. Below is an example of hitting
+  // a custom table and doing a comparison. This example is taken from the way
+  // that we compare for variables between the two system tables. This practice
+  // is rather similar to how the other commands function but can't be further
+  // abstracted due to small variance in how each evaluates whether or not it is
+  // the same, different or missing.
+
+  $source_custom = _drush_recipes_load_db_table($source_settings, 'mytable', 'column');
+  $destination_custom = _drush_recipes_load_db_table($destination_settings, 'mytable', 'column');
+  // compare the source with the destination
+  foreach ($source_custom as $name => $data) {
+    // ensure A exists on B
+    if (array_key_exists($name, $destination_custom) ) {
+      $destination_vars[$name]->name = 'found';
+      // now check for status
+      if ($data->value != $destination_custom[$name]->value) {
+        // this means source is different from destination
+        $drush['setthings'][$name] = $destination_custom[$name]->value;
+      }
+    }
+    else {
+      // now we know we need to delete this
+      $drush['deletethings'][$name] = $name;
+    }
+  }
+  // test for destination having value not originally in source
+  foreach ($destination_custom as $name => $data) {
+    // find things we didn't find previously
+    if ($data->name != 'found') {
+      $drush['setthings'][$name] = $data->value;
+    }
+  }
+}
+
+/**
  * Implements hook_drush_recipes_to_drush_command_format_alter().
  * @param  array  $drush  a series of drush commands for the recipe to process
  * @param  array  $call   the current ingredient structure from one call

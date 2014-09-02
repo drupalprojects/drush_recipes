@@ -66,6 +66,12 @@ function drush_recipes_drush_command() {
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
+  // @todo determine if we really want to include this here. it seems like
+  // the most useful thing this could do is help pull in libraries from the
+  // correct destination and put them in the right place in the file structure
+  // BUT if that's the case then we should work with the libraries api module
+  // to help them fix their commented out, unfinished drush libraries download
+  // command!
   /*$items['drush-dl'] = array(
     'description' => dt('Simple download of something'),
     'arguments' => array(
@@ -302,6 +308,14 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
     // drush_features_diff();
     // need to try and get
   //}
+
+  // allow developers working w/ custom comparisons to jump in and do things
+  // we may not immediately support in the core plugin; like custom tables
+  // or contributed modules that are rare to see in the wild. You could also
+  // use this in order to take out calls found above that you want to ignore.
+  // Like if you were doing dev to prod target diffing and don't care about
+  // permissions differences for the admin user role.
+  drush_command_invoke_all_ref('drush_recipes_target_diff_drush_alter', $drush, $source_settings, $destination_settings);
   // now we convert these into drush calls and feed it to its own recipe
   foreach ($drush as $call => $items) {
     switch ($call) {
