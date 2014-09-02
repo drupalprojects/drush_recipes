@@ -1409,8 +1409,11 @@ function _drush_recipes_detect_format($call) {
 
 /**
  * Implements hook_drush_recipes_FORMAT_command_invoke_alter().
+ * @todo look into drush functions for some kind of token replacement or
+ * validation function of somekind.
  */
 function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
+  $selection = array();
   // loop through tokens requesting input from the user
   foreach ($command['tokens'] as $token => $description) {
     $default = NULL;
@@ -1418,15 +1421,44 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
     if (isset($command['defaults'][$token])) {
       $default = $command['defaults'][$token];
     }
-    $selection[$key] = drush_prompt(dt($description), $default);
+    // prompt for input, only requiring it if a default is not set
+    $selection[$key] = drush_prompt(dt($description), $default, empty($default) ? TRUE : FALSE);
   }
-  //@todo match up the $command['madlib'] command with
-  //foreach ($selection as $token => $value) {
-  //}
-  // == [DRUSH_RECIPES_FORMAT_MADLIB]['target']
-  // == [DRUSH_RECIPES_FORMAT_MADLIB]['command']
-  // array_key_search [DRUSH_RECIPES_FORMAT_MADLIB]['arguments']
-  // array_key_search [DRUSH_RECIPES_FORMAT_MADLIB]['options']
+  // loop through each selected token and scan the target, command, arguments
+  // and options (key | value) for matches. None of these are required
+  // properties so test each one
+  foreach ($selection as $token => $value) {
+    // replace tokens we find in the target; rare
+    if (isset($command[DRUSH_RECIPES_FORMAT_MADLIB]['target'])) {
+      $command[DRUSH_RECIPES_FORMAT_MADLIB]['target'] = str_replace($token, $value, $command[DRUSH_RECIPES_FORMAT_MADLIB]['target']);
+    }
+    // replace tokens we find in the command itself; also rare
+    if (isset($command[DRUSH_RECIPES_FORMAT_MADLIB]['command'])) {
+      $command[DRUSH_RECIPES_FORMAT_MADLIB]['command'] = str_replace($token, $value, $command[DRUSH_RECIPES_FORMAT_MADLIB]['command']);
+    }
+    if (isset($command[DRUSH_RECIPES_FORMAT_MADLIB]['arguments'])) {
+      // loop through the arguments, these only can be matched on the value (arg)
+      foreach ($command[DRUSH_RECIPES_FORMAT_MADLIB]['arguments'] as $key => $arg) {
+        $command[DRUSH_RECIPES_FORMAT_MADLIB]['arguments'][$key] = str_replace($token, $value, $arg);
+      }
+    }
+    if (isset($command[DRUSH_RECIPES_FORMAT_MADLIB]['options'])) {
+      // loop through the options; these can be match on the key OR value OR both
+      foreach ($command[DRUSH_RECIPES_FORMAT_MADLIB]['options'] as $key => $option) {
+        // first the option value, this is the easy part
+        $command[DRUSH_RECIPES_FORMAT_MADLIB]['options'][$key] = str_replace($token, $value, $option);
+        // now the key, a bit more tricky but doable
+        $tmp = str_replace($token, $value, $key);
+        // check that a replacement was made to the key and that $tmp isn't set
+        if ($tmp != $key && !isset($command[DRUSH_RECIPES_FORMAT_MADLIB]['options'][$tmp])) {
+          // set the new key pair to the value of the old one
+          $command[DRUSH_RECIPES_FORMAT_MADLIB]['options'][$tmp] = $command[DRUSH_RECIPES_FORMAT_MADLIB]['options'][$key];
+          // now unset the key as the old key has been token replaced
+          unset($command[DRUSH_RECIPES_FORMAT_MADLIB]['options'][$key]);
+        }
+      }
+    }
+  }
 }
 
  /**
