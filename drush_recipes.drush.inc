@@ -887,6 +887,16 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_MADLIB);
             // allow for targetted type overriding
             drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_MADLIB . '_command_invoke_alter', $command);
+            // ensure process invoking won't fail
+            if (!isset($command['target'])) {
+              $command['target'] = drush_get_context(DRUSH_TARGET_SITE_ALIAS);
+            }
+            if (!isset($command['arguments'])) {
+              $command['arguments'] = array();
+            }
+            if (!isset($command['options'])) {
+              $command['options'] = array();
+            }
             drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
             drush_log($command['command'] . dt(' based madlib complete!'), 'ok');
           }
@@ -896,6 +906,16 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_TARGET);
             // allow for targetted type overriding
             drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_TARGET . '_command_invoke_alter', $command);
+            // ensure process invoking won't fail
+            if (!isset($command['target'])) {
+              $command['target'] = drush_get_context(DRUSH_TARGET_SITE_ALIAS);
+            }
+            if (!isset($command['arguments'])) {
+              $command['arguments'] = array();
+            }
+            if (!isset($command['options'])) {
+              $command['options'] = array();
+            }
             drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
             drush_log($command['command'] . dt(' complete!'), 'ok');
           }
