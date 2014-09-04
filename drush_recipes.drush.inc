@@ -23,6 +23,8 @@ define('DRUSH_RECIPES_MAX_RECURSION', 5);
 define('DRUSH_RECIPES_INVALID', FALSE);
 define('DRUSH_RECIPES_VALID', TRUE);
 define('DRUSH_RECIPES_DEFAULT_URL', 'http://drush.recipes/recipes.xml');
+define('DRUSH_RECIPES_COMMAND_CID', 'recorded-commands');
+define('DRUSH_RECIPES_LOGGING_CID', 'command-recording');
 // listing of the types of drush recipe formats we support
 define('DRUSH_RECIPES_FORMAT_REFERENCE', 'reference');
 define('DRUSH_RECIPES_FORMAT_TARGET', 'target');
@@ -101,6 +103,33 @@ function drush_recipes_drush_command() {
     'examples' => array(
       'drush dvr dr_security' =>
         'Validate that dr_security will work if cooked.',
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+  );
+  $items['drush-recipe-recorder'] = array(
+    'description' => dt('Toggle recording drush commands for a new recipe'),
+    'aliases' => array('dvr'),
+    'arguments' => array(
+      'state' => dt('State of recording, whether to start, pause, stop, or '),
+    ),
+    'allow-additional-options' => TRUE,
+    'examples' => array(
+      'drush dvr start' =>
+        'Start recording drush commands to cache',
+      'drush dvr save' =>
+        'Save recording but don\'t stop recording after the fact',
+      'drush dvr watch' =>
+        'See what\'s currently been recorded',
+      'drush dvr pause' =>
+        'Save recording but don\'t stop recording after the fact',
+      'drush dvr delete' =>
+        'Delete the current recordings, this doesn\'t stop recording though',
+      'drush dvr delete --command=12' =>
+        'Delete the recorded command in the 12th array slot, if confirmed.',
+      'drush dvr delete --command=sql-sync' =>
+        'Delete sql-sync commands from the current recording, if confirmed.',
+      'drush dvr stop' =>
+        'Stop recording to save a recipe then delete commandlist',
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
@@ -393,59 +422,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       $calls[$id] = $item;
     }
     ksort($calls);
-    $recipe = array(
-      'name' => dt('Diff from @source to @destination', array('@source' => $source, '@destination' => $destination)),
-      'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
-      'weight' => 0,
-      'recipe' => $calls,
-      'metadata' => array(
-        'type' => 'utility',
-        'description' => dt('This is an automatically produced recipe using the DDT command'),
-      )
-    );
-    // list the formats allowed
-    $formats = array(
-      'json' => 'json',
-      'xml' => 'xml'
-    );
-    // test for yaml since we support that format too
-    if (function_exists('yaml_emit')) {
-      // allow for writing to file or screen
-      $formats['yaml'] = 'yaml';
-    }
-    $format = drush_choice_with_custom_defaults($formats, 'json', dt('Which recipe encoding?'));
-    // allow for writing to file or screen
-    $output_locations = array(
-      1 => 'write to file',
-      2 => 'print',
-    );
-    // start writing to file if they selected that
-    if (drush_choice_with_custom_defaults($output_locations, 'write to file', dt('Write to file or print to screen?')) === 'write to file') {
-      $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
-      $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
-      // test directory exists / create it if we can
-      if (is_dir("$location") || mkdir("$location")) {
-        // try to write recipe to the file
-        $output = _drush_recipes_encode($recipe, $format);
-        if (!file_put_contents("$location/$file", $output)) {
-          drush_log(dt("Unable to write file @file", array('@file' => $file)), 'error');
-          drush_print(_drush_recipes_encode($recipe, $format));
-        }
-        else {
-          // success! tell them how to use this
-          drush_log(dt("New recipe written to @file. call `drush cook @machine` to cook up this recipe.", array('@file' => "$location/$file", '@machine' => $machine_name)), 'ok');
-        }
-      }
-      else {
-        drush_log(dt("Unable to write folder @location", array('@location' => $location)), 'error');
-        drush_print(_drush_recipes_encode($recipe, $format));
-      }
-    }
-    else {
-      // just write it to the screen though this is mostly just for debugging
-      drush_print(_drush_recipes_encode($recipe, $format));
-    }
-    return TRUE;
+    return _drush_drush_recipes_drush_write_recipe($calls);
   }
   else {
     drush_print(dt('The sites are exactly the same, most likely something went wrong unless you were testing if they are the same.'));
@@ -563,11 +540,18 @@ function drush_drush_recipes_url($url = DRUSH_RECIPES_DEFAULT_URL) {
   }
   return 1;
 }
-
 /**
  * Drush command callback for drush-write-recipe.
  */
 function drush_drush_recipes_drush_write_recipe() {
+  // dwr command has no arguments but we reuse the writing capabilities
+  _drush_drush_recipes_drush_write_recipe();
+}
+
+/**
+ * Helper to write recipe to file
+ */
+function _drush_drush_recipes_drush_write_recipe($items = NULL) {
   $machine_name = drush_prompt(dt('Enter a machine name'));
   //get the first character of machine name and check if it is a number
   $first_char_machine_name = substr($machine_name, 0, 1);
@@ -604,72 +588,72 @@ function drush_drush_recipes_drush_write_recipe() {
   );
   // prompt for the user with the default option
   while (!$type = drush_choice_with_custom_defaults($recipe_types, 'add-on', dt('What type of recipe is this?'), '!value'))
-  $type = $recipe_types[$type];
   // author is optional
   $author = drush_prompt(dt('Recipe author'), NULL, FALSE);
   $call = '';
-  $items = array();
-  while ($call != 'x') {
-    $call = drush_prompt(dt('Write the full drush command you want to add (c for conditional, x when done)'));
-    // if we didn't get told to stop
-    if ($call != 'x') {
-      // check for conditional vs complex so we can write these in via the write
-      // command
-      $item = explode(' ', $call);
-      // this means its a reference to an another drecipe
-      if (count($item) == 1 && strpos($item[0], '.' . DRUSH_RECIPE_EXTENSION)) {
-        $item = (string)$item[0];
-      }
-      // support referencing make files which we short hand to a drush call
-      elseif (count($item) == 1 && strpos($item[0], '.make')) {
-        $item = array(
-          0 => 'make',
-          1 => str_replace('.make', '', $item[0]),
-        );
-      }
-      // support conditionals
-      elseif (count($item) == 1 && strpos($item[0], 'c') === 0) {
-        $conditions = array();
-        $condkey = 0;
-        while ($condinput != 'x') {
-          $condinput = drush_prompt(dt('CONDITIONAL: Add a drush recipe to add to this conditional (type x when done)'));
-          // if we didn't get told to stop and we got a recipe looking entry
-          if ($condinput != 'x' && strpos($condinput, '.' . DRUSH_RECIPE_EXTENSION)) {
-            // this helps ensure conditions are written starting with key 1
-            // can help avoid conflicts with drush options later on
-            $condkey++;
-            $conditions[$condkey] = (string)$condinput;
+  if (empty($items)) {
+    while ($call != 'x') {
+      $call = drush_prompt(dt('Write the full drush command you want to add (c for conditional, x when done)'));
+      // if we didn't get told to stop
+      if ($call != 'x') {
+        // check for conditional vs complex so we can write these in via the write
+        // command
+        $item = explode(' ', $call);
+        // this means its a reference to an another drecipe
+        if (count($item) == 1 && strpos($item[0], '.' . DRUSH_RECIPE_EXTENSION)) {
+          $item = (string)$item[0];
+        }
+        // support referencing make files which we short hand to a drush call
+        elseif (count($item) == 1 && strpos($item[0], '.make')) {
+          $item = array(
+            0 => 'make',
+            1 => str_replace('.make', '', $item[0]),
+          );
+        }
+        // support conditionals
+        elseif (count($item) == 1 && strpos($item[0], 'c') === 0) {
+          $conditions = array();
+          $condkey = 0;
+          while ($condinput != 'x') {
+            $condinput = drush_prompt(dt('CONDITIONAL: Add a drush recipe to add to this conditional (type x when done)'));
+            // if we didn't get told to stop and we got a recipe looking entry
+            if ($condinput != 'x' && strpos($condinput, '.' . DRUSH_RECIPE_EXTENSION)) {
+              // this helps ensure conditions are written starting with key 1
+              // can help avoid conflicts with drush options later on
+              $condkey++;
+              $conditions[$condkey] = (string)$condinput;
+            }
+            elseif ($condinput == 'x') {
+              drush_log(dt('Conditional complete'), 'ok');
+            }
+            else {
+              // ignore input as it wasn't something we understood
+              drush_log(dt('Invalid conditional, recipe references only'), 'warning');
+              continue;
+            }
           }
-          elseif ($condinput == 'x') {
-            drush_log(dt('Conditional complete'), 'ok');
-          }
-          else {
-            // ignore input as it wasn't something we understood
-            drush_log(dt('Invalid conditional, recipe references only'), 'warning');
+          // account for no input in case of a mistake
+          if (empty($conditions)) {
             continue;
           }
+          // add grouping of conditions to the array
+          $item = array(
+            DRUSH_RECIPES_FORMAT_CONDITIONAL => $conditions,
+            DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION => drush_prompt(dt("What question are you asking for this conditional?"), 'Which would you like to run?'),
+          );
         }
-        // account for no input in case of a mistake
-        if (empty($conditions)) {
+        // easiest case
+        elseif ($item[0] == 'drush') {
+          array_shift($item);
+        }
+        else {
+          // ignore input as it wasn't something we understood
+          drush_log(dt('Invalid command'), 'warning');
           continue;
         }
-        // add grouping of conditions to the array
-        $item = array(
-          DRUSH_RECIPES_FORMAT_CONDITIONAL => $conditions,
-          DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION => drush_prompt(dt("What question are you asking for this conditional?"), 'Which would you like to run?'),
-        );
+        // add to array
+        $items[] = $item;
       }
-      // easiest case
-      elseif ($item[0] == 'drush') {
-        array_shift($item);
-      }
-      else {
-        // ignore input as it wasn't something we understood
-        drush_log(dt('Invalid command'), 'warning');
-        continue;
-      }
-      // add to array
-      $items[] = $item;
     }
   }
   $recipe = array(
@@ -889,7 +873,7 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_MADLIB . '_command_invoke_alter', $command);
             // ensure process invoking won't fail
             if (!isset($command['target'])) {
-              $command['target'] = drush_get_context(DRUSH_TARGET_SITE_ALIAS);
+              $command['target'] = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
             }
             if (!isset($command['arguments'])) {
               $command['arguments'] = array();
@@ -908,7 +892,7 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_TARGET . '_command_invoke_alter', $command);
             // ensure process invoking won't fail
             if (!isset($command['target'])) {
-              $command['target'] = drush_get_context(DRUSH_TARGET_SITE_ALIAS);
+              $command['target'] = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
             }
             if (!isset($command['arguments'])) {
               $command['arguments'] = array();
@@ -1485,7 +1469,6 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
   // loop through each selected token and scan the target, command, arguments
   // and options (key | value) for matches. None of these are required
   // properties so test each one
-  // @todo look for more efficient way of doing this
   foreach ($selection as $token => $value) {
     // replace tokens we find in the target; rare
     if (isset($command['target'])) {
@@ -1675,6 +1658,103 @@ function drush_drush_recipes_drush_validate_recipes($list = '') {
 }
 
 /**
+ * Drush command callback for drush-recipe-recorder.
+ */
+function drush_drush_recipes_drush_recipe_recorder($state = 'start') {
+  switch ($state) {
+    case 'start':
+      drush_cache_set(drush_get_cid(DRUSH_RECIPES_LOGGING_CID), TRUE, 'drush_recipes');
+      drush_log(dt('Commands are now being logged'), 'ok');
+    break;
+    case 'save':
+      // save the recipe
+      _drush_recipes_write_recorded_recipe();
+    break;
+    case 'watch':
+      // print the current recording to the screen
+      $calls = _drush_recipes_get_recorded_commands();
+      drush_log(dt('Here\'s what you have currently logged:'), 'ok');
+      drush_print_r($calls);
+    break;
+    case 'pause':
+      drush_cache_clear_all(drush_get_cid(DRUSH_RECIPES_LOGGING_CID), 'drush_recipes');
+      drush_log(dt('Command recording has been paused'), 'ok');
+    break;
+    case 'delete':
+      // allow for option to delete certain calls only
+      if ($delete = drush_get_option('command')) {
+        $commands = _drush_recipes_get_recorded_commands();
+        // allow for key targetting which you'd know based on watch command
+        if (is_numeric($delete)) {
+          if (!isset($commands[$delete])) {
+            drush_log(dt('Array position for deleting was not set!'), 'error');
+            return FALSE;
+          }
+          drush_print_r($commands[$delete]);
+          if (drush_confirm("Are you sure you want to delete the following command from your dvr history?")) {
+            unset($commands[$delete]);
+          }
+          else {
+            return drush_user_abort();
+          }
+        }
+        else {
+          foreach ($commands as $key => $command) {
+            // test each command as we may be deleted cruft
+            if ($command['command'] == $delete) {
+              drush_print(dt('Array position @pos', array('@pos' => $key )));
+              drush_print_r($commands[$key]);
+              if (drush_confirm("Are you sure you want to delete the following command from your dvr history?")) {
+                unset($commands[$key]);
+              }
+            }
+          }
+        }
+        // reset keys to be in order
+        foreach ($commands as $command) {
+          $tmp[] = $command;
+        }
+        drush_cache_set(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), $tmp, 'drush_recipes');
+        drush_log(dt('@delete has been deleted from your dvr', array('@delete' => $delete)), 'ok');
+          return TRUE;
+      }
+      else {
+        // clear whats been recorded
+        if (drush_confirm(dt('Are you sure you want to delete all recorded commands?'))) {
+          drush_cache_clear_all(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), 'drush_recipes');
+          drush_log(dt('Command recording has been deleted'), 'ok');
+          return TRUE;
+        }
+        else {
+          return drush_user_abort();
+        }
+      }
+    break;
+    case 'stop':
+      // clear the state of command recording to stop recording
+      drush_cache_clear_all(drush_get_cid(DRUSH_RECIPES_LOGGING_CID), 'drush_recipes');
+      // save the recipe
+      _drush_recipes_write_recorded_recipe();
+      drush_cache_clear_all(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), 'drush_recipes');
+    break;
+    default:
+      drush_log(dt('Invalid recorder state.'), 'error');
+      return FALSE;
+    break;
+  }
+
+  return TRUE;
+}
+
+/**
+ * Helper function to automatically save commands to recipe format
+ */
+function _drush_recipes_write_recorded_recipe() {
+  $calls = _drush_recipes_get_recorded_commands();
+  return _drush_drush_recipes_drush_write_recipe($calls);
+}
+
+/**
  * Helper function to validate a drush recipe
  */
 function _drush_recipes_validate_recipe($recipe) {
@@ -1740,6 +1820,82 @@ function _drush_recipes_validate_recipe($recipe) {
   }
   // we got here, something went wrong
   return DRUSH_RECIPES_INVALID;
+}
+
+/**
+ * Wrapper around drush_cache_get to get the recorded commands
+ * @return array commands that have been saved in cache throughout recording
+ */
+function _drush_recipes_get_recorded_commands() {
+  $commands = array();
+  $command_object = drush_cache_get(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), 'drush_recipes');
+  if ($command_object) {
+    $commands = $command_object->data;
+  }
+  return $commands;
+}
+
+/**
+ * See if we are currently recording commands.
+ * @return bool if we should be recording commands currently
+ */
+function _drush_recipes_record_commands() {
+  $recording = FALSE;
+  $recording_object = drush_cache_get(drush_get_cid(DRUSH_RECIPES_LOGGING_CID), 'drush_recipes');
+  if ($recording_object) {
+    $recording = $recording_object->data;
+  }
+  return $recording;
+}
+
+/**
+ * Implements hook_drush_exit()
+ * See if we should be recording commands and if we should, add our command
+ * to the list that's currently in cache.
+ */
+function drush_recipes_drush_exit() {
+  // see if we should be recording commands in the first place
+  if (_drush_recipes_record_commands()) {
+    // load current command
+    $command_object = drush_get_command();
+    // exit early if this is a command for recording
+    if (in_array($command_object['command'], array('dvr', 'drush-recipe-recorder'))) {
+      return TRUE;
+    }
+    // build the object for writing to command cache
+    $command = array(
+      'command' => $command_object['command'],
+    );
+    // load arguments and options at run time
+    $args = drush_get_original_cli_args_and_options();
+    // split options and arguments into buckets we can rip to a recipe
+    foreach ($args as $arg) {
+      // check for option
+      if (strpos($arg, '-') === 0) {
+        if (strpos($arg, '=')) {
+          $parts = split('=', $arg);
+          $command['options'][$parts[0]] = $parts[1];
+        }
+        else {
+          $command['options'][] = $arg;
+        }
+      }
+      else {
+        $command['arguments'][] = $arg;
+      }
+    }
+    // pull in the active alias of this command if it is set
+    $target = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
+    // ensure we have a target declared before setting this
+    if (!empty($target)) {
+      $command['target'] = $target;
+    }
+    // load existing commands
+    $commands = _drush_recipes_get_recorded_commands();
+    $commands[] = $command;
+    drush_cache_set(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), $commands, 'drush_recipes');
+    drush_log(dt('Command logged to command recorder.'), 'ok');
+  }
 }
 
 /**
