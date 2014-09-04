@@ -97,7 +97,7 @@ function drush_recipes_drush_command() {
   );
   $items['drush-validate-recipes'] = array(
     'description' => dt('Validate a saved recipe will run if built from scratch'),
-    'aliases' => array('dvr'),
+    'aliases' => array('valid-recipe'),
     'examples' => array(
       'drush dvr dr_security' =>
         'Validate that dr_security will work if cooked.',
