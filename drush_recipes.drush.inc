@@ -121,6 +121,7 @@ function drush_recipes_drush_command() {
     'options' => array(
       'dr-locations' => dt('User defined list of other locations to load in from'),
     ),
+    'allow-additional-options' => TRUE,
     'aliases' => array('cook'),
     'examples' => array(
       'drush drush-cook-recipes dr_security' =>
@@ -1435,8 +1436,6 @@ function _drush_recipes_detect_format($call) {
 
 /**
  * Implements hook_drush_recipes_FORMAT_command_invoke_alter().
- * @todo look into drush functions for some kind of token replacement or
- * validation function of somekind.
  */
 function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
   $selection = array();
@@ -1447,8 +1446,15 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
   foreach ($command['tokens'] as $token => $description) {
     $default = NULL;
     $default_set = FALSE;
+    // check for option at commandline, this overrides empty AND default values
+    // this means you can cook a recipe with these values downsteam by supplying
+    // the option at run time: drush cook recipe --mlt-token=value
+    if ($default = drush_get_option('mlt-' . str_replace('[', '', str_replace(']', '', $token)))) {
+      // stupid but this allows for NULL string setting as the default case
+      $default_set = TRUE;
+    }
     // see if we have a supplied default if the user is skipping through
-    if (isset($command['defaults'][$token])) {
+    else if (isset($command['defaults'][$token])) {
       $default = $command['defaults'][$token];
       // stupid but this allows for NULL string setting as the default case
       $default_set = TRUE;
@@ -1492,14 +1498,17 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
       }
     }
   }
-  // build the output for confirmation
+  // build the output for confirmation of command execution
+
+  // target is not required
   if (isset($command['target'])) {
     $print .= $command['target'] . ' ';
   }
-  // replace tokens we find in the command itself; also rare
+  // replace tokens we find in the command itself; rare
   if (isset($command['command'])) {
     $print .= $command['command'] . ' ';
   }
+  // tokens can live in arguemnts though this would be rare
   if (isset($command['arguments'])) {
     $print .= implode(' ', $command['arguments']);
   }
