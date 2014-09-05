@@ -149,6 +149,7 @@ function drush_recipes_drush_command() {
     ),
     'options' => array(
       'dr-locations' => dt('User defined list of other locations to load in from'),
+      'simple-uncook' => dt('Allow for a simple recipe reversal, like swapping enables for disables; good for lazy devs with simple recipes.'),
     ),
     'allow-additional-options' => TRUE,
     'aliases' => array('cook'),
@@ -180,6 +181,8 @@ function drush_recipes_drush_help($section) {
       return dt('Download a file from a url');*/
     case 'drush:drush-validate-recipes':
       return dt('Validate a recipe is in the correct format.');
+    case 'drush-recipe-recorder':
+      return dt('Activate the Drush Recipe DVR to never miss a call again!');
   }
 }
 
@@ -866,6 +869,10 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
       foreach ($commands as $command) {
         if (is_array($command)) {
           if (isset($command[DRUSH_RECIPES_FORMAT_MADLIB])) {
+            // allow for super simple uncooking of recipe
+            if (drush_get_option('simple-uncook')) {
+              _drush_recipes_simple_uncook($command['command']);
+            }
             drush_log(dt('Adding Madlib ingredient: ') . $command['command'], 'ok');
             // allow for generic overriding of this command
             drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_MADLIB);
@@ -885,6 +892,10 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             drush_log($command['command'] . dt(' based madlib complete!'), 'ok');
           }
           else if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
+            // allow for super simple uncooking of recipe
+            if (drush_get_option('simple-uncook')) {
+              _drush_recipes_simple_uncook($command['command']);
+            }
             drush_log(dt('Adding ingredient: ') . $command['command'], 'ok');
             // allow for generic overriding of this command
             drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_TARGET);
@@ -929,6 +940,12 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
           drush_command_invoke_all_ref('drush_recipes_' . $call['_drush_recipes_custom_format'] . '_command_invoke_alter', $command);
         }
         else {
+          // allow for super simple uncooking of commands
+          if (drush_get_option('simple-uncook')) {
+            $tmp = explode(' ', $command);
+            _drush_recipes_simple_uncook($tmp[1]);
+            $command = implode(' ', $tmp);
+          }
           drush_log('Adding ingredient: ' . $command, 'ok');
           $command .= ' --y';
           // allow for generic overriding of this command
@@ -951,6 +968,29 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   }
   // allow projects to react after cooking
   drush_command_invoke_all_ref('drush_recipes_post_cook_alter', $list, $recurse);
+}
+
+/**
+ * Take a command and convert it to its inverse command for simple uncooking
+ * @param  string $command the drush command to perform uncooking on.
+ * @return string          the new drush command to perform
+ */
+function _drush_recipes_simple_uncook(&$command) {
+  // switch the easy cases
+  switch ($command) {
+    case 'pm-enable':
+    case 'en':
+      $command = 'dis';
+    break;
+    case 'variable-set':
+    case 'vset':
+      $command = 'vdel';
+    break;
+    case 'pm-disable':
+    case 'dis':
+      $command = 'en';
+    break;
+  }
 }
 
 /**
