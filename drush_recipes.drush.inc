@@ -27,7 +27,7 @@ define('DRUSH_RECIPES_COMMAND_CID', 'recorded-commands');
 define('DRUSH_RECIPES_LOGGING_CID', 'command-recording');
 // listing of the types of drush recipe formats we support
 define('DRUSH_RECIPES_FORMAT_REFERENCE', 'reference');
-define('DRUSH_RECIPES_FORMAT_TARGET', 'target');
+define('DRUSH_RECIPES_FORMAT_TARGET', 'command');
 define('DRUSH_RECIPES_FORMAT_MADLIB', 'madlib');
 define('DRUSH_RECIPES_FORMAT_CONDITIONAL', 'conditional');
 define('DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION', 'prompt');
