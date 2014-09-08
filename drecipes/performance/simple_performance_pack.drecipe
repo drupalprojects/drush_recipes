@@ -1,0 +1,20 @@
+{
+  "name": "Simple performance pack",
+  "drush_recipes_api": "1.0",
+  "core": "7",
+  "weight": 0,
+  "recipe": [
+    "core_performance.drecipe",
+    [
+      "en",
+      "entitycache,advagg",
+      "--y"
+    ]
+  ],
+  "metadata": {
+    "description": "Drop dead simple performance enhancements for all sites",
+    "version": "1.0",
+    "type": "add-on",
+    "author": "btopro"
+  }
+}
