@@ -1,0 +1,21 @@
+{
+  "name": "Standard Baseline",
+  "drush_recipes_api": "1.0",
+  "weight": "-1",
+  "core": "7",
+  "recipe": [
+    "core_above_core.drecipe",
+    "dr_security_core_settings.drecipe",
+    {
+      "command": "cook",
+      "arguments": ["simple_performance_pack"]
+    },
+    "d7adminux.drecipe"
+  ],
+  "metadata": {
+    "type": 3,
+    "description": "A standard baseline drupal site to build on top of",
+    "version": "0.1",
+    "author": "btopro"
+  }
+}

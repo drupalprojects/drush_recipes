@@ -1304,11 +1304,14 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
           }
         }
         else {
-          $print = 'drush der '  . str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call);
+          $print = 'drush cook '  . str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call);
           if ($list) {
             drush_print(_drush_recipes_indent($indent) . $print);
           }
-          $drush[] = $print;
+          $drush[] = array(
+            'command' => 'cook',
+            'arguments' => array(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $call)),
+          );
         }
       break;
       case DRUSH_RECIPES_FORMAT_MADLIB:
