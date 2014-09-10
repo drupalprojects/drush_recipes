@@ -1372,6 +1372,44 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
         if ($list) {
           drush_print(_drush_recipes_indent($indent+1) . 'drush ' . implode(' ', $call));
         }
+        // temp place to work with the call
+        $tmp = $call;
+        $new_call = array();
+        // look for a drush alias target
+        if (strpos($tmp[0], '@') === 0) {
+          $new_call['target'] = $tmp[0];
+          array_shift($ary);
+        }
+        // now we have a command
+        $new_call['command'] = $tmp[0];
+        array_shift($tmp);
+        // ensure we handle these differently since it encapsulates stuff
+        // @todo see if there's a better way of evaluating these parts correctly
+        // at this point in the operation even though this is a total fallback
+        if (in_array($new_call['command'], array('php-eval', 'eval', 'ev', 'rap', 'role-add-perm', 'rmp', 'role-remove-perm'))) {
+          $new_call['arguments'] = array(implode(' ', $tmp));
+        }
+        else {
+          // loop through the rest
+          foreach ($tmp as $item) {
+            // look for options vs arguments
+            if (strpos($item, '--') === 0) {
+              // see if this is setting anything
+              if (strpos($item, '=')) {
+                $parts = explode('=', $item);
+                $new_call['options'][$parts[0]] = $parts[1];
+              }
+              else {
+                $new_call['options'][$item] = TRUE;
+              }
+            }
+            else {
+              $new_call['arguments'][] = $item;
+            }
+          }
+        }
+        // add the new call into the array
+        $drush[] = $new_call;
       break;
       default:
         // we didn't pass any of the known recipe specifications
