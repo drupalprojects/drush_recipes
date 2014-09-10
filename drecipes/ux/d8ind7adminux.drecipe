@@ -7,10 +7,12 @@
 		"d7adminux"
   ],
 	"recipe": [
-		[
-			"en",
-			"navbar"
-		],
+		{
+      "command": "en",
+      "arguments": [
+        "navbar"
+      ]
+    },
 		"crufty_core_off.drecipe"
 	],
 	"metadata": {

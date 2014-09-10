@@ -5,11 +5,12 @@
   "weight": 0,
   "recipe": [
     "core_performance.drecipe",
-    [
-      "en",
-      "entitycache,advagg",
-      "--y"
-    ]
+    {
+      "command": "en",
+      "arguments": [
+        "entitycache,advagg"
+      ]
+    }
   ],
   "metadata": {
     "description": "Drop dead simple performance enhancements for all sites",

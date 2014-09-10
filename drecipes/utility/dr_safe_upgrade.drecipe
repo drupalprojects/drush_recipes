@@ -8,40 +8,43 @@
     "@site"
   ],
 	"recipe": [
-		[
-			"rr",
-			"--y"
-		],
-		[
-			"vset",
-			"-y",
-			"--always-set",
-			"maintenance_mode",
-			"1"
-		],
-		[
-			"updb",
-			"--y"
-		],
-		[
-			"vdel",
-			"-y",
-			"--exact",
-			"maintenance_mode"
-		],
-		[
-			"cron",
-			"--y"
-		],
-		[
-			"cc",
-			"all",
-			"--y"
-		],
-		[
-			"ecl",
-			"--y"
-		]
+		{
+      "command": "rr"
+    },
+    {
+      "command": "vset",
+      "arguments": [
+        "maintenance_mode",
+        "1"
+      ],
+      "options": {
+        "always-set": "1"
+      }
+    },
+    {
+      "command": "updb"
+    },
+    {
+      "command": "vdel",
+      "arguments": [
+        "maintenance_mode"
+      ],
+      "options": {
+        "exact": "1"
+      }
+    },
+		{
+      "command": "cron"
+    },
+    {
+      "command": "cc",
+      "arguments": [
+        "all"
+      ]
+    },
+		{
+      "command": "ecl"
+    }
 	],
 	"metadata": {
 		"type": "routine",

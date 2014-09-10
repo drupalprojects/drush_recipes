@@ -3,78 +3,98 @@
   "drush_recipes_api": "1.0",
   "core": "7",
   "weight": 0,
-  "dependencies": [
-      "genpass",
-      "login_security",
-      "password_policy",
-      "session_limit"
-  ],
   "recipe": [
       "dr_security_owasp.drecipe",
-      [
-        "en",
-        "genpass,login_security,password_policy"
-      ],
-      [
-        "vset",
-        "genpass_length",
-        "14"
-      ],
-      [
-        "vset",
-        "genpass_mode",
-        "2"
-      ],
-      [
-        "vset",
-        "genpass_display",
-        "1"
-      ],
-      [
-        "vset",
-        "login_security_track_time",
-        "2"
-      ],
-      [
-        "vset",
-        "login_security_user_wrong_count",
-        "10"
-      ],
-      [
-        "vset",
-        "login_security_host_wrong_count",
-        "15"
-      ],
-      [
-        "vset",
-        "login_security_host_wrong_count_hard",
-        "25"
-      ],
-      [
-        "vset",
-        "login_security_activity_threshold",
-        "26"
-      ],
-      [
-        "vset",
-        "login_security_disable_core_login_error",
-        "1"
-      ],
-      [
-        "vset",
-        "password_policy_block",
-        "1"
-      ],
-      [
-        "vset",
-        "session_limit_behaviour",
-        "1"
-      ],
-      [
-        "vset",
-        "session_limit_masquerade_ignore",
-        "1"
-      ]
+      {
+        "command": "en",
+        "arguments": [
+          "genpass,login_security,password_policy"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "genpass_length",
+          "14"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "genpass_mode",
+          "2"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "genpass_display",
+          "1"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "login_security_track_time",
+          "2"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "login_security_user_wrong_count",
+          "10"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "login_security_host_wrong_count",
+          "15"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "login_security_host_wrong_count_hard",
+          "25"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "login_security_activity_threshold",
+          "26"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "login_security_disable_core_login_error",
+          "1"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "password_policy_block",
+          "1"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "session_limit_behaviour",
+          "1"
+        ]
+      },
+      {
+        "command": "vset",
+        "arguments": [
+          "session_limit_masquerade_ignore",
+          "1"
+        ]
+      }
   ],
   "metadata": {
     "type": "add-on",

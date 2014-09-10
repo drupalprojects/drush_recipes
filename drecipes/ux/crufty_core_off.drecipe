@@ -4,17 +4,21 @@
 	"core": "7",
 	"weight": 0,
 	"recipe": [
-		[
-			"dis",
-			"toolbar,shortcut,overlay"
-		],
-		[
-			"pm-uninstall",
-			"toolbar,shortcut,overlay"
-		]
+		{
+      "command": "dis",
+      "arguments": [
+        "toolbar,shortcut,overlay"
+      ]
+    },
+    {
+      "command": "pm-uninstall",
+      "arguments": [
+        "toolbar,shortcut,overlay"
+      ]
+    }
 	],
 	"metadata": {
-		"type": 2,
+		"type": "add-on",
 		"description": "Disable core modules that most people don't like for admin ux",
 		"version": "1.0",
 		"author": "btopro"

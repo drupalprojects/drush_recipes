@@ -4,14 +4,18 @@
   "core": "7",
   "weight": 0,
   "recipe": [
-    [
-      "dl",
-      "ctools,entity,module_filter,features,views_bulk_operations,libraries,jquery_update,pathauto,strongarm,prepopulate,token,nodeformcols,field_group,date,link,entityreference,options_element,filefield_paths,uuid,rubik,tao,views"
-    ],
-    [
-      "en",
-      "ctools,entity,module_filter,features,views_bulk_operations,libraries,pathauto,token,nodeformcols,field_group,date,link,entityreference,options_element,uuid,views"
-    ]
+    {
+      "command": "dl",
+      "arguments": [
+        "ctools,entity,module_filter,features,views_bulk_operations,libraries,jquery_update,pathauto,strongarm,prepopulate,token,nodeformcols,field_group,date,link,entityreference,options_element,filefield_paths,uuid,rubik,tao,views"
+      ]
+    },
+    {
+      "command": "en",
+      "arguments": [
+        "ctools,entity,module_filter,features,views_bulk_operations,libraries,pathauto,token,nodeformcols,field_group,date,link,entityreference,options_element,uuid,views"
+      ]
+    }
   ],
   "metadata": {
     "description": "Enable projects you can not live without!",
