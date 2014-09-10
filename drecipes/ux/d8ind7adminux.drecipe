@@ -10,7 +10,7 @@
 		{
       "command": "en",
       "arguments": [
-        "navbar"
+        "navbar,module_filter"
       ]
     },
 		"crufty_core_off.drecipe"
