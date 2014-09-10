@@ -68,12 +68,7 @@ function drush_recipes_drush_command() {
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
-  // @todo determine if we really want to include this here. it seems like
-  // the most useful thing this could do is help pull in libraries from the
-  // correct destination and put them in the right place in the file structure
-  // BUT if that's the case then we should work with the libraries api module
-  // to help them fix their commented out, unfinished drush libraries download
-  // command!
+  // @todo issue about this https://www.drupal.org/node/2326463
   /*$items['drush-dl'] = array(
     'description' => dt('Simple download of something'),
     'arguments' => array(
@@ -355,6 +350,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   // see if we shold export module differences
   if (in_array('features', $components) && function_exists('features_menu')) {
     // @todo do a features comparison (if applicable)
+    // not entirely sure how this would work but seems possible
     // drush_features_diff();
   }
 
@@ -369,7 +365,6 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   // now we convert these into drush calls and feed it to its own recipe
   foreach ($drush as $call => $items) {
     switch ($call) {
-      // @todo generate these the long form way up front
       // set variables the long way
       case 'vset':
         // optional sanitization by profiler_builder
@@ -2065,9 +2060,7 @@ function _drush_recipes_argument_to_target($call) {
   // now we have a command
   $new_call['command'] = $tmp[0];
   array_shift($tmp);
-  // ensure we handle these differently since it encapsulates stuff
-  // @todo see if there's a better way of evaluating these parts correctly
-  // at this point in the operation even though this is a total fallback
+  // ensure we handle these differently since it encapsulates stuff commonly
   if (in_array($new_call['command'], array('php-eval', 'eval', 'ev', 'rap', 'role-add-perm', 'rmp', 'role-remove-perm'))) {
     // loop through the rest
     foreach ($tmp as $key =>  $item) {
