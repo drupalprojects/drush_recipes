@@ -136,9 +136,15 @@ function drush_recipes_drush_command() {
   $items['drush-diff-targets-recipe'] = array(
     'description' => dt('Analyze two targets and create a recipe to chart a course from one to another. Great for figuring out what a client changed after a distro was installed.'),
     'aliases' => array('ddt'),
+    'options' => array(
+      'components' => dt('Components that you want to include in the diff. possible core values: modules, variables, roles, features'),
+      'test-run' => dt('This will quickly print it to the screen without asking questions.'),
+    ),
     'examples' => array(
       'drush @target1 ddt @target2' =>
         'Analysis will occur of how target2 is different then target1 and a suggested recipe to follow how to get target1 to be target2 will be generated (either to the screen or written to a file.',
+      'drush @target1 ddt --components=modules,variables' =>
+        'Export the module and variable definitions in target1 and create a recipe that would allow it to be recreated in a future system.',
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
@@ -192,6 +198,7 @@ function drush_recipes_drush_help($section) {
 function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destination = NULL) {
   // test for source being provided by target
   $alias = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
+  $drush = array();
   // if alias is not empty / @none and destination is empty
   if (!empty($alias) && $alias != '@none' && empty($destination)) {
     $destination = $source;
@@ -202,6 +209,8 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
     $destination = $source;
     $source = '@none';
   }
+  // test for components option
+  $components = explode(',', drush_get_option('components', 'modules,variables,roles,features'));
 
   // preflight destination in case it defines the alias used by the source
   _drush_sitealias_get_record($destination);
@@ -211,136 +220,143 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   // apply command-specific options.
   drush_sitealias_command_default_options($source_settings, 'source-');
   drush_sitealias_command_default_options($destination_settings, 'target-');
-  // select module / themes / profiles in use via system table
-  $fields = array('name', 'type', 'status');
-  $source_system = _drush_recipes_load_db_table($source_settings, 'system', 'name', $fields);
-  $destination_system = _drush_recipes_load_db_table($destination_settings, 'system', 'name', $fields);
-  $drush = array();
-  // compare the source with the destination
-  foreach ($source_system as $project => $data) {
-    // ensure A exists on B at least
-    if (array_key_exists($project, $destination_system) ) {
-      $destination_system[$project]->type = 'found';
-      // now check for status
-      if ($data->status != $destination_system[$project]->status) {
-        // this means source is on, destination is off
-        if ($data->status == 1) {
-          $drush['dis'][$project] = $project;
+  // see if we shold export module differences
+  if (in_array('modules', $components)) {
+    // select module / themes / profiles in use via system table
+    $fields = array('name', 'type', 'status');
+    $source_system = _drush_recipes_load_db_table($source_settings, 'system', 'name', $fields);
+    $destination_system = _drush_recipes_load_db_table($destination_settings, 'system', 'name', $fields);
+    // compare the source with the destination
+    foreach ($source_system as $project => $data) {
+      // ensure A exists on B at least
+      if (array_key_exists($project, $destination_system) ) {
+        $destination_system[$project]->type = 'found';
+        // now check for status
+        if ($data->status != $destination_system[$project]->status) {
+          // this means source is on, destination is off
+          if ($data->status == 1) {
+            $drush['dis'][$project] = $project;
+          }
+          else {
+            $drush['en'][$project] = $project;
+          }
         }
-        else {
+      }
+      else {
+        // now we know we need to download something
+        $drush['dl'][$project] = $project;
+      }
+    }
+    // test for destination having modules not originally in source
+    foreach ($destination_system as $project => $data) {
+      // find things we didn't find previously
+      if ($data->type != 'found') {
+        $drush['dl'][$project] = $project;
+        // if enabled then let's mark that it needs enabled
+        if ($data->status) {
           $drush['en'][$project] = $project;
         }
       }
     }
-    else {
-      // now we know we need to download something
-      $drush['dl'][$project] = $project;
-    }
   }
-  // test for destination having modules not originally in source
-  foreach ($destination_system as $project => $data) {
-    // find things we didn't find previously
-    if ($data->type != 'found') {
-      $drush['dl'][$project] = $project;
-      // if enabled then let's mark that it needs enabled
-      if ($data->status) {
-        $drush['en'][$project] = $project;
+  // see if we shold export variables differences
+  if (in_array('variables', $components)) {
+    // do a variable comparison
+    $source_vars = _drush_recipes_load_db_table($source_settings, 'variable', 'name');
+    $destination_vars = _drush_recipes_load_db_table($destination_settings, 'variable', 'name');
+    // compare the source with the destination
+    foreach ($source_vars as $name => $data) {
+      // ensure variable A exists on B
+      if (array_key_exists($name, $destination_vars) ) {
+        $destination_vars[$name]->name = 'found';
+        // now check for status
+        if ($data->value != $destination_vars[$name]->value) {
+          // this means source is different from destination
+          $drush['vset'][$name] = $destination_vars[$name]->value;
+        }
+      }
+      else {
+        // now we know we need to delete this variable
+        $drush['vdel'][$name] = $name;
+      }
+    }
+    // test for destination having variables not originally in source
+    foreach ($destination_vars as $name => $data) {
+      // find things we didn't find previously
+      if ($data->name != 'found') {
+        $drush['vset'][$name] = $data->value;
       }
     }
   }
-  // do a variable comparison
-  $source_vars = _drush_recipes_load_db_table($source_settings, 'variable', 'name');
-  $destination_vars = _drush_recipes_load_db_table($destination_settings, 'variable', 'name');
-  // compare the source with the destination
-  foreach ($source_vars as $name => $data) {
-    // ensure variable A exists on B
-    if (array_key_exists($name, $destination_vars) ) {
-      $destination_vars[$name]->name = 'found';
-      // now check for status
-      if ($data->value != $destination_vars[$name]->value) {
-        // this means source is different from destination
-        $drush['vset'][$name] = $destination_vars[$name]->value;
-      }
+  // see if we shold export role / permission differences
+  if (in_array('roles', $components)) {
+    // compare permissions and roles
+    // load up the source db / roles / permissions
+    if ($source_settings['#name'] == 'none') {
+      $source_roles = array();
+      $source_perms = array();
     }
     else {
-      // now we know we need to delete this variable
-      $drush['vdel'][$name] = $name;
+      _drush_recipes_db_set_active($source_settings);
+      drupal_static_reset('user_role_permissions');
+      $source_roles = user_roles();
+      $source_perms = user_role_permissions($source_roles);
     }
-  }
-  // test for destination having variables not originally in source
-  foreach ($destination_vars as $name => $data) {
-    // find things we didn't find previously
-    if ($data->name != 'found') {
-      $drush['vset'][$name] = $data->value;
-    }
-  }
-  // compare permissions and roles
-  // load up the source db / roles / permissions
-  if ($source_settings['#name'] == 'none') {
-    $source_roles = array();
-    $source_perms = array();
-  }
-  else {
-    _drush_recipes_db_set_active($source_settings);
+    // load up the destination db / roles / permissions
+    _drush_recipes_db_set_active($destination_settings);
     drupal_static_reset('user_role_permissions');
-    $source_roles = user_roles();
-    $source_perms = user_role_permissions($source_roles);
-  }
-  // load up the destination db / roles / permissions
-  _drush_recipes_db_set_active($destination_settings);
-  drupal_static_reset('user_role_permissions');
-  $destination_roles = user_roles();
-  $destination_perms = user_role_permissions($destination_roles);
-  // return to default just to be safe
-  db_set_active();
+    $destination_roles = user_roles();
+    $destination_perms = user_role_permissions($destination_roles);
+    // return to default just to be safe
+    db_set_active();
 
-  // comparison, this can be a bit evil..
-  foreach ($source_perms as $rid => $permissions) {
-    // ensure variable A exists on B
-    if (array_key_exists($rid, $destination_perms) ) {
-      // dig deeper into permissions arrays
-      foreach ($permissions as $permission => $bool) {
-        // check that a permission is set
-        if (array_key_exists($permission, $destination_perms[$rid]) ) {
-          // store the fact that we found this role in some fashion
-          $destination_perms[$rid][$permission] = 'found';
+    // comparison, this can be a bit evil..
+    foreach ($source_perms as $rid => $permissions) {
+      // ensure variable A exists on B
+      if (array_key_exists($rid, $destination_perms) ) {
+        // dig deeper into permissions arrays
+        foreach ($permissions as $permission => $bool) {
+          // check that a permission is set
+          if (array_key_exists($permission, $destination_perms[$rid]) ) {
+            // store the fact that we found this role in some fashion
+            $destination_perms[$rid][$permission] = 'found';
+          }
+          else {
+            // this means destination DOES NOT have a perm in source
+            $drush['rmp'][$destination_roles[$rid]][$permission] = TRUE;
+          }
         }
-        else {
-          // this means destination DOES NOT have a perm in source
-          $drush['rmp'][$destination_roles[$rid]][$permission] = TRUE;
+        $destination_perms[$rid]['_drush_found'] = 'found';
+        // test for destination having permissions not originally in source
+        foreach ($destination_perms[$rid] as $permission => $bool) {
+          // find things we didn't find previously
+          if ($bool != 'found') {
+            // a permission exists in destination but not source
+            $drush['rap'][$destination_roles[$rid]][$permission] = TRUE;
+          }
         }
       }
-      $destination_perms[$rid]['_drush_found'] = 'found';
-      // test for destination having permissions not originally in source
-      foreach ($destination_perms[$rid] as $permission => $bool) {
-        // find things we didn't find previously
-        if ($bool != 'found') {
-          // a permission exists in destination but not source
-          $drush['rap'][$destination_roles[$rid]][$permission] = TRUE;
-        }
+      else {
+        // a role was deleted
+        $drush['rdel'][$rid] = $rid;
       }
     }
-    else {
-      // a role was deleted
-      $drush['rdel'][$rid] = $rid;
+    // test for destination having roles not originally in source
+    foreach ($destination_perms as $rid => $permissions) {
+      // find things we didn't find previously
+      if (!isset($permissions['_drush_found'])) {
+        // a role exists in destination that's not in source
+        $drush['rcrt'][$destination_roles[$rid]] = $destination_roles[$rid];
+        unset($permissions['_drush_found']);
+        $drush['rap'][$destination_roles[$rid]] = $permissions;
+      }
     }
   }
-  // test for destination having roles not originally in source
-  foreach ($destination_perms as $rid => $permissions) {
-    // find things we didn't find previously
-    if (!isset($permissions['_drush_found'])) {
-      // a role exists in destination that's not in source
-      $drush['rcrt'][$destination_roles[$rid]] = $destination_roles[$rid];
-      unset($permissions['_drush_found']);
-      $drush['rap'][$destination_roles[$rid]] = $permissions;
-    }
-  }
-  $calls = array();
-  // @todo do a features comparison (if applicable)
-  //if (module_exists('features')) {
+  // see if we shold export module differences
+  if (in_array('features', $components) && function_exists('features_menu')) {
+    // @todo do a features comparison (if applicable)
     // drush_features_diff();
-    // need to try and get
-  //}
+  }
 
   // allow developers working w/ custom comparisons to jump in and do things
   // we may not immediately support in the core plugin; like custom tables
@@ -349,6 +365,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   // Like if you were doing dev to prod target diffing and don't care about
   // permissions differences for the admin user role.
   drush_command_invoke_all_ref('drush_recipes_target_diff_drush_alter', $drush, $source_settings, $destination_settings);
+  $calls = array();
   // now we convert these into drush calls and feed it to its own recipe
   foreach ($drush as $call => $items) {
     switch ($call) {
@@ -426,7 +443,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       $calls[$id] = $item;
     }
     ksort($calls);
-    return _drush_drush_recipes_drush_write_recipe($calls);
+    return _drush_drush_recipes_drush_write_recipe($calls, drush_get_option('test-run', FALSE));
   }
   else {
     drush_print(dt('The sites are exactly the same, most likely something went wrong unless you were testing if they are the same.'));
@@ -555,45 +572,58 @@ function drush_drush_recipes_drush_write_recipe() {
 /**
  * Helper to write recipe to file
  */
-function _drush_drush_recipes_drush_write_recipe($items = NULL) {
-  $machine_name = drush_prompt(dt('Enter a machine name'));
-  //get the first character of machine name and check if it is a number
-  $first_char_machine_name = substr($machine_name, 0, 1);
-  if (!ctype_alpha($first_char_machine_name)){
-    //echo that input cannot start with a number.
-    drush_log('Syntax Error: Please enter a machine name that does not start with a number.', 'error');
-    // we return to effectively start a recursive loop but cancel out this one.
-    return drush_drush_recipes_drush_write_recipe();
-  }
-  else {
-    $original_machine = $machine_name;
-    $machine_name = strtolower($machine_name);
-    // check for spaces and replace with underscores.
-    $machine_name = preg_replace("/[^a-z0-9_]/" , '_', $machine_name);
-    // verify that user wants the converted string; if not start over.
-    if (($original_machine != $machine_name) && !drush_confirm(dt('Is @machine the machine name you want?', array('@machine' => $machine_name)))) {
+function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALSE) {
+  // allow for test runs for debugging other functions and copy / paste ease
+  if (!$test_run) {
+    $machine_name = drush_prompt(dt('Enter a machine name'));
+    //get the first character of machine name and check if it is a number
+    $first_char_machine_name = substr($machine_name, 0, 1);
+    if (!ctype_alpha($first_char_machine_name)){
+      //echo that input cannot start with a number.
+      drush_log('Syntax Error: Please enter a machine name that does not start with a number.', 'error');
+      // we return to effectively start a recursive loop but cancel out this one.
       return drush_drush_recipes_drush_write_recipe();
     }
+    else {
+      $original_machine = $machine_name;
+      $machine_name = strtolower($machine_name);
+      // check for spaces and replace with underscores.
+      $machine_name = preg_replace("/[^a-z0-9_]/" , '_', $machine_name);
+      // verify that user wants the converted string; if not start over.
+      if (($original_machine != $machine_name) && !drush_confirm(dt('Is @machine the machine name you want?', array('@machine' => $machine_name)))) {
+        return drush_drush_recipes_drush_write_recipe();
+      }
+    }
+    $name = drush_prompt(dt('Enter recipe name'));
+    // description, version, weight and core are optional
+    $description = drush_prompt(dt('Enter a description'), NULL, FALSE);
+    $version = drush_prompt(dt('Enter version'), '1.0');
+    $weight = drush_prompt(dt('Weight'), '0', FALSE);
+    // description and version are optional
+    if (!$major_version = drush_drupal_major_version()) {
+      $major_version = DRUSH_RECIPES_CORE_COMPATIBILITY;
+    }
+    $core = drush_prompt(dt('Drupal core'), $major_version);
+    $recipe_types = array(
+      1 => 'add-on',
+      2 => 'routine',
+      3 => 'utility',
+    );
+    // prompt for the user with the default option
+    while (!$type = drush_choice_with_custom_defaults($recipe_types, 'add-on', dt('What type of recipe is this?'), '!value'))
+    // author is optional
+    $author = drush_prompt(dt('Recipe author'), NULL, FALSE);
   }
-  $name = drush_prompt(dt('Enter recipe name'));
-  // description, version, weight and core are optional
-  $description = drush_prompt(dt('Enter a description'), NULL, FALSE);
-  $version = drush_prompt(dt('Enter version'), '1.0');
-  $weight = drush_prompt(dt('Weight'), '0', FALSE);
-  // description and version are optional
-  if (!$major_version = drush_drupal_major_version()) {
-    $marjor_version = DRUSH_RECIPES_CORE_COMPATIBILITY;
+  else {
+    $machine_name = 'test_run';
+    $name = 'Test run';
+    $description = 'This is a test run';
+    $version = '0.0';
+    $weight = '0';
+    $core = 'test';
+    $type = 'test';
+    $author = 'test';
   }
-  $core = drush_prompt(dt('Drupal core'), $marjor_version);
-  $recipe_types = array(
-    1 => 'add-on',
-    2 => 'routine',
-    3 => 'utility',
-  );
-  // prompt for the user with the default option
-  while (!$type = drush_choice_with_custom_defaults($recipe_types, 'add-on', dt('What type of recipe is this?'), '!value'))
-  // author is optional
-  $author = drush_prompt(dt('Recipe author'), NULL, FALSE);
   $call = '';
   if (empty($items)) {
     while ($call != 'x') {
@@ -660,6 +690,7 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL) {
       }
     }
   }
+  // assemble the recipe
   $recipe = array(
     'name' => $name,
     'drush_recipes_api' => DRUSH_RECIPES_API_VERSION,
@@ -683,14 +714,19 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL) {
     // allow for writing to file or screen
     $formats['yaml'] = 'yaml';
   }
-  while (!$format = drush_choice_with_custom_defaults($formats, 'json', dt('Which recipe encoding?'), '!value'));
+  if (!$test_run) {
+    while (!$format = drush_choice_with_custom_defaults($formats, 'json', dt('Which recipe encoding?'), '!value'));
+  }
+  else {
+    $format = 'json';
+  }
   // allow for writing to file or screen
   $output_locations = array(
     1 => 'write to file',
     2 => 'print',
   );
   // start writing to file if they selected that
-  if (drush_choice_with_custom_defaults($output_locations, 'write to file', dt('Write to file or print to screen?')) === 'write to file') {
+  if (!$test_run && drush_choice_with_custom_defaults($output_locations, 'write to file', dt('Write to file or print to screen?')) === 'write to file') {
     $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
     $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
     // test directory exists / create it if we can
