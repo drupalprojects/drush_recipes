@@ -383,38 +383,87 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
           }
         }
         else {
-          drush_print(dt('While Profiler Builder is not required, it is highly recommended so that it can automatically sanitize variables you don\' want to ship around between builds (like cron keys). Run drush dl profiler_builder'));
+          drush_print(dt('While Profiler Builder is not required, it is highly recommended so that it can automatically sanitize variables you don\' want to ship around between builds (like cron keys).'));
+          if (drush_confirm(dt('Would you like to run drush en profiler_builder now?'))) {
+            drush_invoke_process(drush_get_context('DRUSH_TARGET_SITE_ALIAS'), 'en', array('profiler_builder'), array('y' => TRUE));
+            drush_invoke_process(drush_get_context('DRUSH_TARGET_SITE_ALIAS'), 'cc', array('drush'), array('y' => TRUE));
+            drush_print(dt('Run the command again, now with profiler builder able to process the output.'));
+            return drush_user_abort();
+          }
         }
         // loop through items and build variables with full set statements
         foreach ($items as $name => $value) {
-          $calls[] = 'drush ev "variable_set(\"' . $name . '\", ' . var_export(unserialize($value), TRUE) . ');"';
+          $val = unserialize($value);
+          switch (gettype($val)) {
+            case "boolean":
+            case "integer":
+            case "double":
+            case "float":
+            case "string":
+              $calls[] = array(
+                'command' => 'vset',
+                'arguments' => array(
+                  $name,
+                  $val
+                )
+              );
+            break;
+            default:
+              $calls[] = array(
+                'command' => 'ev',
+                'arguments' => array(
+                  '"variable_set(\"' . $name . '\", ' . var_export($val, TRUE) . ');"'
+                )
+              );
+            break;
+          }
         }
       break;
       // delete variables
       case 'vdel':
         foreach ($items as $name => $value) {
-          $calls[] = 'drush vdel ' . $name;
+          $calls[] = array(
+            'command' => 'vdel',
+            'arguments' => array(
+              $name
+            )
+          );
         }
       break;
       // create roles
       case 'rcrt':
         foreach ($items as $rid => $name) {
-          // goofy key names ensures its above permission addition
-          $calls['aaa_create_role' . $rid] = 'drush rcrt \'' . $rid . '\' \'' . $name . '\'';
+          $calls['aaa_create_role' . $rid] = array(
+            'command' => 'rcrt',
+            'arguments' => array(
+              "'$rid'",
+              "'$name'"
+            )
+          );
         }
       break;
       // delete roles
       case 'rdel':
         foreach ($items as $rid) {
-          // goofy key names ensures its above permission addition
-          $calls[] = 'drush rdel ' . $rid;
+          $calls[] = array(
+            'command' => 'rdel',
+            'arguments' => array(
+              $rid
+            )
+          );
         }
       break;
       // add permissions
       case 'rap':
         foreach ($items as $rid => $permissions) {
           foreach ($permissions as $permission => $bool) {
-            $calls['zzz_add_perm' . $rid . $permission] = 'drush rap \'' . $rid . '\' \'' . $permission . '\'';
+            $calls['zzz_add_perm' . $rid . $permission] = array(
+              'command' => 'rap',
+              'arguments' => array(
+                "'$rid'",
+                "'$permission'"
+              )
+            );
           }
         }
       break;
@@ -422,26 +471,25 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       case 'rmp':
         foreach ($items as $rid => $permissions) {
           foreach ($permissions as $permission => $bool) {
-            $calls[] = 'drush rmp \'' . $rid . '\' \'' . $permission . '\'';
+            $calls['zzz_add_perm' . $rid . $permission] = array(
+              'command' => 'rmp',
+              'arguments' => array(
+                "'$rid'",
+                "'$permission'"
+              )
+            );
           }
         }
       break;
       default:
-        $calls[$call] = 'drush ' . $call . ' ' . implode(',', $items);
+        $tmp = _drush_recipes_argument_to_target($items);
+        $tmp['command'] = $call;
+        $calls[] = $tmp;
       break;
     }
   }
   // insanely rare use case where we have an exact copy of a site..
   if (!empty($calls)) {
-    // switch from easy to write format into arguments
-    foreach ($calls as $id => $call) {
-      $item = explode(' ', $call);
-      // always will be but just be safe
-      if ($item[0] == 'drush') {
-        array_shift($item);
-      }
-      $calls[$id] = $item;
-    }
     ksort($calls);
     return _drush_drush_recipes_drush_write_recipe($calls, drush_get_option('test-run', FALSE));
   }
@@ -637,11 +685,11 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALS
         if (count($item) == 1 && strpos($item[0], '.' . DRUSH_RECIPE_EXTENSION)) {
           $item = (string)$item[0];
         }
-        // support referencing make files which we short hand to a drush call
+        // support referencing make files which we shorthand to a drush call
         elseif (count($item) == 1 && strpos($item[0], '.make')) {
           $item = array(
-            0 => 'make',
-            1 => str_replace('.make', '', $item[0]),
+            'command' => 'make',
+            'arguments' => array(str_replace('.make', '', $item[0])),
           );
         }
         // support conditionals
@@ -679,6 +727,7 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALS
         // easiest case
         elseif ($item[0] == 'drush') {
           array_shift($item);
+          $item = _drush_recipes_argument_to_target($item);
         }
         else {
           // ignore input as it wasn't something we understood
@@ -940,13 +989,20 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             if (!isset($command['target'])) {
               $command['target'] = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
             }
+            if (empty($command['target'])) {
+              $command['target'] = '@none';
+            }
             if (!isset($command['arguments'])) {
               $command['arguments'] = array();
             }
             if (!isset($command['options'])) {
               $command['options'] = array();
             }
-            drush_log(dt('Adding ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . implode(' ', $command['options']), 'ok');
+            $option_out = '';
+            foreach ($command['options'] as $key => $val) {
+              $option_out .= ' --' . $key . '=' . $val;
+            }
+            drush_log(dt('Adding ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out, 'ok');
             drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
           }
           else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
@@ -963,7 +1019,6 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             // recursive since they just selected a reference
             drush_drush_recipes_drush_cook_recipes(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $which), TRUE);
           }
-          drush_log($which . dt(' complete!'), 'ok');
         }
         // allow for custom format or else assume argument based
         else if (isset($call['_drush_recipes_custom_format'])) {
@@ -993,7 +1048,6 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
           foreach ($shell_output as $shell) {
             drush_print($shell);
           }
-          drush_log($command . ' complete!', 'ok');
         }
       }
     }
@@ -1409,42 +1463,8 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
         if ($list) {
           drush_print(_drush_recipes_indent($indent+1) . 'drush ' . implode(' ', $call));
         }
-        // temp place to work with the call
-        $tmp = $call;
-        $new_call = array();
-        // look for a drush alias target
-        if (strpos($tmp[0], '@') === 0) {
-          $new_call['target'] = $tmp[0];
-          array_shift($ary);
-        }
-        // now we have a command
-        $new_call['command'] = $tmp[0];
-        array_shift($tmp);
-        // ensure we handle these differently since it encapsulates stuff
-        // @todo see if there's a better way of evaluating these parts correctly
-        // at this point in the operation even though this is a total fallback
-        if (in_array($new_call['command'], array('php-eval', 'eval', 'ev', 'rap', 'role-add-perm', 'rmp', 'role-remove-perm'))) {
-          $new_call['arguments'] = array(implode(' ', $tmp));
-        }
-        else {
-          // loop through the rest
-          foreach ($tmp as $item) {
-            // look for options vs arguments
-            if (strpos($item, '--') === 0) {
-              // see if this is setting anything
-              if (strpos($item, '=')) {
-                $parts = explode('=', $item);
-                $new_call['options'][$parts[0]] = $parts[1];
-              }
-              else {
-                $new_call['options'][$item] = TRUE;
-              }
-            }
-            else {
-              $new_call['arguments'][] = $item;
-            }
-          }
-        }
+        // convert the call to a target based call
+        $new_call = _drush_recipes_argument_to_target($call);
         // add the new call into the array
         $drush[] = $new_call;
       break;
@@ -2026,6 +2046,67 @@ function drush_recipes_drush_exit() {
     drush_cache_set(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), $commands, 'drush_recipes');
     drush_log(dt('Command logged to command recorder.'), 'ok');
   }
+}
+
+/**
+ * Helper to convert an argument based call to a target based call
+ * @param  array $call simple array of a drush call as an array of arguments
+ * @return array       command / target based method of running a drush call
+ */
+function _drush_recipes_argument_to_target($call) {
+  // temp place to work with the call
+  $tmp = $call;
+  $new_call = array();
+  // look for a drush alias target
+  if (strpos($tmp[0], '@') === 0) {
+    $new_call['target'] = $tmp[0];
+    array_shift($tmp);
+  }
+  // now we have a command
+  $new_call['command'] = $tmp[0];
+  array_shift($tmp);
+  // ensure we handle these differently since it encapsulates stuff
+  // @todo see if there's a better way of evaluating these parts correctly
+  // at this point in the operation even though this is a total fallback
+  if (in_array($new_call['command'], array('php-eval', 'eval', 'ev', 'rap', 'role-add-perm', 'rmp', 'role-remove-perm'))) {
+    // loop through the rest
+    foreach ($tmp as $key =>  $item) {
+      // look for options vs arguments
+      if (strpos($item, '--') === 0) {
+        // see if this is setting anything
+        if (strpos($item, '=')) {
+          $parts = explode('=', $item);
+          $new_call['options'][str_replace('--', '', $parts[0])] = $parts[1];
+        }
+        else {
+          $new_call['options'][str_replace('--', '', $item)] = TRUE;
+        }
+        unset($tmp[$key]);
+      }
+    }
+    $new_call['arguments'] = array(implode(' ', $tmp));
+  }
+  else {
+    // loop through the rest
+    foreach ($tmp as $item) {
+      // look for options vs arguments
+      if (strpos($item, '--') === 0) {
+        // see if this is setting anything
+        if (strpos($item, '=')) {
+          $parts = explode('=', $item);
+          $new_call['options'][str_replace('--', '', $parts[0])] = $parts[1];
+        }
+        else {
+          $new_call['options'][str_replace('--', '', $item)] = TRUE;
+        }
+      }
+      else {
+        $new_call['arguments'][] = $item;
+      }
+    }
+  }
+
+  return $new_call;
 }
 
 /**
