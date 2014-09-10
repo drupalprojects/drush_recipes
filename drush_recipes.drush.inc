@@ -882,8 +882,31 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
   $recipes = _drush_recipes_system_rebuild_recipe_data();
   $cook = array_intersect_key($recipes, array_flip($list));
   if (empty($cook)) {
-    drush_log('The recipes you have specified don\'t exist, try running drush dlr for a listing of available commands or use --dr-locations to include a location that might have the recipe you just tried to cook.', 'error');
-    return FALSE;
+    // it's not in this system, let's test it for a local path
+    if (file_exists($list[0])) {
+      $cook[0] = array(
+        'name' => dt('local file'),
+        'drecipe' => array(),
+      );
+      $cook[0] = (object) $cook[0];
+      $cook[0]->drecipe = _drush_recipes_load_recipe($list[0]);
+    }
+    else if (parse_url($list[0])) {
+      $cook[0] = array(
+        'name' => dt('remote file'),
+        'drecipe' => array(),
+      );
+      $cook[0] = (object) $cook[0];
+      // load file from remote location
+      $url = basename(current(explode('?', $list[0], 2)));
+      $destination = drush_get_context('DRUSH_PER_USER_CONFIGURATION') .'/drecipes/' . basename($url);
+      $file = drush_download_file($list[0], $destination);
+      $cook[0]->drecipe = _drush_recipes_load_recipe($file);
+    }
+    else {
+      drush_log('The recipes you have specified don\'t exist, try running drush dlr for a listing of available commands or use --dr-locations to include a location that might have the recipe you just tried to cook.', 'error');
+      return FALSE;
+    }
   }
   // validate recipes we are going to cook are valid recipe formatted items
   foreach ($cook as $recipe) {
@@ -1253,7 +1276,8 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
 
 /**
  * Helper function to load a file.
- *
+ * @param  string  $path     path to a recipe to load
+ * @param  boolean $validate whether this is part of validating the recipe spec
  * @return array decoded array from one of the formats listed.
  */
 function _drush_recipes_load_recipe($path, $validate = FALSE) {
