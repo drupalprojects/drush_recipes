@@ -2040,13 +2040,13 @@ function drush_recipes_drush_exit() {
     // split options and arguments into buckets we can rip to a recipe
     foreach ($args as $arg) {
       // check for option
-      if (strpos($arg, '-') === 0) {
+      if (strpos($arg, '--') === 0) {
         if (strpos($arg, '=')) {
-          $parts = split('=', $arg);
-          $command['options'][$parts[0]] = $parts[1];
+          $parts = explode('=', $arg);
+          $command['options'][str_replace('--', '', $parts[0])] = $parts[1];
         }
         else {
-          $command['options'][] = $arg;
+          $command['options'][str_replace('--', '', $arg)] = TRUE;
         }
       }
       else {
