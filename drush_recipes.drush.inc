@@ -137,7 +137,7 @@ function drush_recipes_drush_command() {
     'description' => dt('Analyze two targets and create a recipe to chart a course from one to another. Great for figuring out what a client changed after a distro was installed.'),
     'aliases' => array('ddt'),
     'examples' => array(
-      'drush ddt @target1 @target2' =>
+      'drush @target1 ddt @target2' =>
         'Analysis will occur of how target2 is different then target1 and a suggested recipe to follow how to get target1 to be target2 will be generated (either to the screen or written to a file.',
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
@@ -307,7 +307,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
         }
         else {
           // this means destination DOES NOT have a perm in source
-          $drush['rmp'][$rid][$permission] = TRUE;
+          $drush['rmp'][$destination_roles[$rid]][$permission] = TRUE;
         }
       }
       $destination_perms[$rid]['_drush_found'] = 'found';
@@ -316,7 +316,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
         // find things we didn't find previously
         if ($bool != 'found') {
           // a permission exists in destination but not source
-          $drush['rap'][$rid][$permission] = TRUE;
+          $drush['rap'][$destination_roles[$rid]][$permission] = TRUE;
         }
       }
     }
@@ -330,9 +330,9 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
     // find things we didn't find previously
     if (!isset($permissions['_drush_found'])) {
       // a role exists in destination that's not in source
-      $drush['rcrt'][$rid] = $destination_roles[$rid];
+      $drush['rcrt'][$destination_roles[$rid]] = $destination_roles[$rid];
       unset($permissions['_drush_found']);
-      $drush['rap'][$rid] = $permissions;
+      $drush['rap'][$destination_roles[$rid]] = $permissions;
     }
   }
   $calls = array();
@@ -352,6 +352,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   // now we convert these into drush calls and feed it to its own recipe
   foreach ($drush as $call => $items) {
     switch ($call) {
+      // @todo generate these the long form way up front
       // set variables the long way
       case 'vset':
         // optional sanitization by profiler_builder
@@ -365,11 +366,11 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
           }
         }
         else {
-          drush_print(dt('While Profiler Builder is not required, it is highly recommended so that it can automatically sanitize variables you don\' want to ship around between builds (like cron keys). run drush dl profiler_builder'));
+          drush_print(dt('While Profiler Builder is not required, it is highly recommended so that it can automatically sanitize variables you don\' want to ship around between builds (like cron keys). Run drush dl profiler_builder'));
         }
         // loop through items and build variables with full set statements
         foreach ($items as $name => $value) {
-          $calls[] = 'drush ev variable_set("' . $name . '", ' . var_export(unserialize($value), TRUE) . ')';
+          $calls[] = 'drush ev "variable_set(\"' . $name . '\", ' . var_export(unserialize($value), TRUE) . ');"';
         }
       break;
       // delete variables
@@ -382,7 +383,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       case 'rcrt':
         foreach ($items as $rid => $name) {
           // goofy key names ensures its above permission addition
-          $calls['aaa_create_role' . $rid] = 'drush rcrt ' . $rid . ' \'' . $name . '\'';
+          $calls['aaa_create_role' . $rid] = 'drush rcrt \'' . $rid . '\' \'' . $name . '\'';
         }
       break;
       // delete roles
@@ -396,7 +397,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       case 'rap':
         foreach ($items as $rid => $permissions) {
           foreach ($permissions as $permission => $bool) {
-            $calls['zzz_add_perm' . $rid . $permission] = 'drush rap ' . $rid . ' \'' . $permission . '\'';
+            $calls['zzz_add_perm' . $rid . $permission] = 'drush rap \'' . $rid . '\' \'' . $permission . '\'';
           }
         }
       break;
@@ -404,7 +405,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       case 'rmp':
         foreach ($items as $rid => $permissions) {
           foreach ($permissions as $permission => $bool) {
-            $calls[] = 'drush rmp ' . $rid . ' \'' . $permission . '\'';
+            $calls[] = 'drush rmp \'' . $rid . '\' \'' . $permission . '\'';
           }
         }
       break;
@@ -873,7 +874,6 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             if (drush_get_option('simple-uncook')) {
               _drush_recipes_simple_uncook($command['command']);
             }
-            drush_log(dt('Adding Madlib ingredient: ') . $command['command'], 'ok');
             // allow for generic overriding of this command
             drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_MADLIB);
             // allow for targetted type overriding
@@ -888,15 +888,14 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             if (!isset($command['options'])) {
               $command['options'] = array();
             }
+            drush_log(dt('Adding Madlib ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . implode(' ', $command['options']), 'ok');
             drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
-            drush_log($command['command'] . dt(' based madlib complete!'), 'ok');
           }
           else if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
             // allow for super simple uncooking of recipe
             if (drush_get_option('simple-uncook')) {
               _drush_recipes_simple_uncook($command['command']);
             }
-            drush_log(dt('Adding ingredient: ') . $command['command'], 'ok');
             // allow for generic overriding of this command
             drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_TARGET);
             // allow for targetted type overriding
@@ -911,8 +910,8 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             if (!isset($command['options'])) {
               $command['options'] = array();
             }
+            drush_log(dt('Adding ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . implode(' ', $command['options']), 'ok');
             drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
-            drush_log($command['command'] . dt(' complete!'), 'ok');
           }
           else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
             // shift array keys forward if 0 is set to avoid issues
@@ -946,8 +945,8 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
             _drush_recipes_simple_uncook($tmp[1]);
             $command = implode(' ', $tmp);
           }
-          drush_log('Adding ingredient: ' . $command, 'ok');
           $command .= ' --y';
+          drush_log('Adding ingredient: ' . $command, 'ok');
           // allow for generic overriding of this command
           drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_ARGUMENT);
           // allow for targetted type overriding
@@ -1367,7 +1366,9 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
         }
       break;
       case DRUSH_RECIPES_FORMAT_ARGUMENT:
-        $drush[] = 'drush ' . implode(' ', $call);
+        // we've effectively killed off this case at this point via the
+        // functionality below that now tries to convert it into the target spec
+
         // see if we should print nicely formatted debug stuff
         if ($list) {
           drush_print(_drush_recipes_indent($indent+1) . 'drush ' . implode(' ', $call));
