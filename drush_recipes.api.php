@@ -132,6 +132,11 @@ function hook_drush_recipes_encode_alter(&$contents, $format) {
 
 /**
  * Implements hook_drush_recipes_target_diff_drush_alter().
+ * using $drush['__last'][] can be used to force a call to fire at the end
+ * but then it will be assuming that this is a valid call format. Use this if
+ * you know of calls that need to happen at the end of the routine / after other
+ * calls to avoid issues (such as features that define user role permissions).
+ *
  * @param  array $drush                array of drush calls to write to recipe
  * @param  array $source_settings      alias / db settings for source
  * @param  array $destination_settings alias / db setings for destination
