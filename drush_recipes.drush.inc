@@ -134,6 +134,7 @@ function drush_recipes_drush_command() {
     'options' => array(
       'components' => dt('Components that you want to include in the diff. possible core values: modules, variables, roles, features'),
       'test-run' => dt('This will quickly print it to the screen without asking questions.'),
+      'make-it-so' => dt('Apply the change between source and destination to make the source the same as the destination'),
     ),
     'examples' => array(
       'drush @target1 ddt @target2' =>
@@ -369,7 +370,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   // Like if you were doing dev to prod target diffing and don't care about
   // permissions differences for the admin user role.
   drush_command_invoke_all_ref('drush_recipes_target_diff_drush_alter', $drush, $source_settings, $destination_settings);
-  $calls = array();
+  $calls = $end_calls = array();
   // now we convert these into drush calls and feed it to its own recipe
   foreach ($drush as $call => $items) {
     switch ($call) {
@@ -397,29 +398,12 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
         // loop through items and build variables with full set statements
         foreach ($items as $name => $value) {
           $val = unserialize($value);
-          switch (gettype($val)) {
-            case "boolean":
-            case "integer":
-            case "double":
-            case "float":
-            case "string":
-              $calls[] = array(
-                'command' => 'vset',
-                'arguments' => array(
-                  $name,
-                  $val
-                )
-              );
-            break;
-            default:
-              $calls[] = array(
-                'command' => 'ev',
-                'arguments' => array(
-                  '"variable_set(\"' . $name . '\", ' . var_export($val, TRUE) . ');"'
-                )
-              );
-            break;
-          }
+          $calls[] = array(
+            'command' => 'ev',
+            'arguments' => array(
+              '"variable_set(\"' . $name . '\", ' . var_export($val, TRUE) . ');"'
+            )
+          );
         }
       break;
       // delete variables
@@ -484,6 +468,14 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
           }
         }
       break;
+      // special developer case for things that should fire last
+      case '_last':
+        // these are special calls and are already formed and are added to
+        // an array that will be added after everything is done
+        foreach ($items as $item) {
+          $end_calls[] = $item;
+        }
+      break;
       default:
         $tmp = _drush_recipes_argument_to_target($items);
         $tmp['command'] = $call;
@@ -491,9 +483,26 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       break;
     }
   }
+  // allow for late calls to be added to the end
+  foreach ($end_calls as $end) {
+    array_push($calls, $end);
+  }
   // insanely rare use case where we have an exact copy of a site..
   if (!empty($calls)) {
     ksort($calls);
+    // allow for automatic applying of 1 thing to be the other
+    if (drush_get_option('make-it-so', FALSE)) {
+      // print what's about to happen to the screen
+      _drush_drush_recipes_drush_write_recipe($calls, TRUE);
+      // ask if they are super sure they want to do this since it is destructive
+      if (drush_confirm(dt('Are you sure you want to apply the difference between @source and @destination? This means that @source will have the above recipe applied to it, effectively making it the same site as @destination.', array('@destination' => $destination, '@source' => $source)))) {
+        drush_drush_recipes_drush_cook_recipes('', TRUE, array($calls));
+        return dt('@source should now be largely the same as @destination!', array('@destination' => $destination, '@source' => $source));
+      }
+      else {
+        return drush_user_abort();
+      }
+    }
     return _drush_drush_recipes_drush_write_recipe($calls, drush_get_option('test-run', FALSE));
   }
   else {
@@ -877,103 +886,105 @@ function drush_drush_recipes_drush_list_recipes($list = '') {
 /**
  * Drush command callback for drush-cook-recipes.
  */
-function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE) {
-  $commands = array();
-  $list = explode(',', $list);
-  if (empty($list)) {
-    drush_log('You must specify recipes to cook! try running drush dlr for a listing of commands to cook.', 'error');
-    return FALSE;
-  }
-  // allow projects to alter the list
-  drush_command_invoke_all_ref('drush_recipes_pre_cook_alter', $list, $recurse);
-
-  $recipes = _drush_recipes_system_rebuild_recipe_data();
-  $cook = array_intersect_key($recipes, array_flip($list));
-  if (empty($cook)) {
-    // it's not in this system, let's test it for a local path
-    if (file_exists($list[0])) {
-      $cook[0] = array(
-        'name' => dt('local file'),
-        'drecipe' => array(),
-      );
-      $cook[0] = (object) $cook[0];
-      $cook[0]->drecipe = _drush_recipes_load_recipe($list[0]);
-    }
-    else if (parse_url($list[0])) {
-      $cook[0] = array(
-        'name' => dt('remote file'),
-        'drecipe' => array(),
-      );
-      $cook[0] = (object) $cook[0];
-      // load file from remote location
-      $url = basename(current(explode('?', $list[0], 2)));
-      $destination = drush_get_context('DRUSH_PER_USER_CONFIGURATION') .'/drecipes/' . basename($url);
-      $file = drush_download_file($list[0], $destination);
-      $cook[0]->drecipe = _drush_recipes_load_recipe($file);
-    }
-    else {
-      drush_log('The recipes you have specified don\'t exist, try running drush dlr for a listing of available commands or use --dr-locations to include a location that might have the recipe you just tried to cook.', 'error');
+function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $recipe_list = array()) {
+  if (empty($recipe_list)) {
+    $commands = array();
+    $list = explode(',', $list);
+    if (empty($list)) {
+      drush_log('You must specify recipes to cook! try running drush dlr for a listing of commands to cook.', 'error');
       return FALSE;
     }
-  }
-  // validate recipes we are going to cook are valid recipe formatted items
-  foreach ($cook as $recipe) {
-    if (!_drush_recipes_validate_recipe($recipe->drecipe)) {
-      // this wasn't a valid format
-      return drush_user_abort();
-    }
-  }
-  $dependencies = $conflicts = $weight = array();
-  // ensure that they are listed based on weight to form a block chain
-  foreach ($cook as $key => $recipe) {
-    $weight[$key]  = $recipe->drecipe['weight'];
-    $dependencies = array_merge($dependencies,(isset($recipe->drecipe['dependencies']) ? $recipe->drecipe['dependencies'] : array()));
-    $conflicts = array_merge($conflicts,(isset($recipe->drecipe['conflicts']) ? $recipe->drecipe['conflicts'] : array()));
-  }
-  // Sort the data with weight descending
-  array_multisort($weight, SORT_ASC, $cook);
-  // test for conflicts
-  foreach ($conflicts as $conflict) {
-    foreach ($cook as $recipe) {
-      if ($recipe->name == $conflict) {
-        drush_log(dt('Recipes could not be run, @name is listed as a known conflict of one of the included recipes. Review the conflict and try again.', array('@name' => $recipe->name)), 'error');
-        return drush_user_abort();
+    // allow projects to alter the list
+    drush_command_invoke_all_ref('drush_recipes_pre_cook_alter', $list, $recurse);
+
+    $recipes = _drush_recipes_system_rebuild_recipe_data();
+    $cook = array_intersect_key($recipes, array_flip($list));
+    if (empty($cook)) {
+      // it's not in this system, let's test it for a local path
+      if (file_exists($list[0])) {
+        $cook[0] = array(
+          'name' => dt('local file'),
+          'drecipe' => array(),
+        );
+        $cook[0] = (object) $cook[0];
+        $cook[0]->drecipe = _drush_recipes_load_recipe($list[0]);
       }
-    }
-  }
-  // ensure dependencies are met
-  $notmet = array();
-  // build a list of what plugins supply what commands
-  $commandlist = drush_get_commands();
-  foreach ($commandlist as $command) {
-    $drush_projects[] = $command['commandfile'];
-  }
-  foreach ($dependencies as $dependency) {
-    if (drush_is_command($dependency) || in_array($dependency, $drush_projects) || (function_exists('module_exists') && module_exists($dependency)) || (function_exists('module_exists') && $dependency == '@site')) {
-      // do nothing, this command exists in some fashion
-    }
-    else {
-      // if we require a working site and didn't get one fail immediately
-      if ($dependency == '@site') {
-        drush_print(dt('This requires a working drupal site to function!'));
-        return drush_user_abort();
+      else if (filter_var($list[0], FILTER_VALIDATE_URL)) {
+        $cook[0] = array(
+          'name' => dt('remote file'),
+          'drecipe' => array(),
+        );
+        $cook[0] = (object) $cook[0];
+        // load file from remote location
+        $url = basename(current(explode('?', $list[0], 2)));
+        $destination = drush_get_context('DRUSH_PER_USER_CONFIGURATION') .'/drecipes/' . basename($url);
+        $file = drush_download_file($list[0], $destination);
+        $cook[0]->drecipe = _drush_recipes_load_recipe($file);
       }
       else {
-        $notmet[] = $dependency;
+        drush_log('The recipes you have specified don\'t exist, try running drush dlr for a listing of available commands or use --dr-locations to include a location that might have the recipe you just tried to cook.', 'error');
+        return FALSE;
       }
     }
-  }
-  // if anything has failed then we need to tell the user why it didn't run
-  if (!empty($notmet)) {
-    drush_log(dt("Recipes could not be cooked because the following dependencies have not been met:\n@name\nTry:\ndrush dl @dls\n\nOr did you maybe mean to run this against a site target?", array('@name' => implode("\n", $notmet), '@dls' => implode(',', $notmet))), 'error');
-    return drush_user_abort();
-  }
+    // validate recipes we are going to cook are valid recipe formatted items
+    foreach ($cook as $recipe) {
+      if (!_drush_recipes_validate_recipe($recipe->drecipe)) {
+        // this wasn't a valid format
+        return drush_user_abort();
+      }
+    }
+    $dependencies = $conflicts = $weight = array();
+    // ensure that they are listed based on weight to form a block chain
+    foreach ($cook as $key => $recipe) {
+      $weight[$key]  = $recipe->drecipe['weight'];
+      $dependencies = array_merge($dependencies,(isset($recipe->drecipe['dependencies']) ? $recipe->drecipe['dependencies'] : array()));
+      $conflicts = array_merge($conflicts,(isset($recipe->drecipe['conflicts']) ? $recipe->drecipe['conflicts'] : array()));
+    }
+    // Sort the data with weight descending
+    array_multisort($weight, SORT_ASC, $cook);
+    // test for conflicts
+    foreach ($conflicts as $conflict) {
+      foreach ($cook as $recipe) {
+        if ($recipe->name == $conflict) {
+          drush_log(dt('Recipes could not be run, @name is listed as a known conflict of one of the included recipes. Review the conflict and try again.', array('@name' => $recipe->name)), 'error');
+          return drush_user_abort();
+        }
+      }
+    }
+    // ensure dependencies are met
+    $notmet = array();
+    // build a list of what plugins supply what commands
+    $commandlist = drush_get_commands();
+    foreach ($commandlist as $command) {
+      $drush_projects[] = $command['commandfile'];
+    }
+    foreach ($dependencies as $dependency) {
+      if (drush_is_command($dependency) || in_array($dependency, $drush_projects) || (function_exists('module_exists') && module_exists($dependency)) || (function_exists('module_exists') && $dependency == '@site')) {
+        // do nothing, this command exists in some fashion
+      }
+      else {
+        // if we require a working site and didn't get one fail immediately
+        if ($dependency == '@site') {
+          drush_print(dt('This requires a working drupal site to function!'));
+          return drush_user_abort();
+        }
+        else {
+          $notmet[] = $dependency;
+        }
+      }
+    }
+    // if anything has failed then we need to tell the user why it didn't run
+    if (!empty($notmet)) {
+      drush_log(dt("Recipes could not be cooked because the following dependencies have not been met:\n@name\nTry:\ndrush dl @dls\n\nOr did you maybe mean to run this against a site target?", array('@name' => implode("\n", $notmet), '@dls' => implode(',', $notmet))), 'error');
+      return drush_user_abort();
+    }
 
-  // convert cooking list into commands to run
-  drush_print("\n" . dt('Ingredients list to cook: @list', array('@list' => implode(',', $list))));
-  $recipe_list = array();
-  foreach ($cook as $recipe) {
-    $recipe_list[] = _drush_recipes_recipe_to_drush($recipe);
+    // convert cooking list into commands to run
+    drush_print("\n" . dt('Ingredients list to cook: @list', array('@list' => implode(',', $list))));
+    // see if we got passed a recipe list ahead of time
+    foreach ($cook as $recipe) {
+      $recipe_list[] = _drush_recipes_recipe_to_drush($recipe);
+    }
   }
   // confirm cooking as this can be a ton of drush commands
   if ($recurse || drush_confirm('Are you sure you want to cook these recipes with the above call structure? ' . implode(' ', array_keys($cook)))) {
@@ -2132,6 +2143,34 @@ function _drush_recipes_argument_to_target($call) {
   }
 
   return $new_call;
+}
+
+/**
+ * Implements hook_drush_recipes_target_diff_drush_alter().
+ */
+function drush_recipes_drush_recipes_target_diff_drush_alter(&$drush, $source_settings, $destination_settings) {
+  // remove problem modules from being enabled via drush
+  $problems = array('apc', 'filecache', 'entitycache', 'eck_entitycache');
+  foreach ($problems as $problem) {
+    if (isset($drush['en'][$problem])) {
+      unset($drush['en'][$problem]);
+    }
+  }
+  // if a new drush recipes instance, move these to the end!
+  if (isset($drush['en']['drush_recipes_service'])) {
+    unset($drush['en']['drush_recipes_service']);
+    unset($drush['en']['drush_recipes_defaults']);
+    unset($drush['en']['drush_recipes_displays']);
+    unset($drush['en']['drush_recipes_entity']);
+    $drush['_last'][] = array(
+      'command' => 'en',
+      'arguments' => array('drush_recipes_entity')
+    );
+    $drush['_last'][] = array(
+      'command' => 'en',
+      'arguments' => array('drush_recipes_service')
+    );
+  }
 }
 
 /**
