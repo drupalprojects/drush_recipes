@@ -200,8 +200,16 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
     $source = $alias;
   }
   // test for null case target diffing via lazy method
-  if ((empty($destination) || $destination == '@none') && isset($source)) {
+  if ((empty($destination) || $destination == '@none') && !empty($source)) {
     $destination = $source;
+    $source = '@none';
+  }
+  // edge case, ddt run without a target defined, needs to be self
+  if (empty($destination) || $destination == '@none') {
+    $destination = '@self';
+  }
+  // edge case, ddt run without a target defined, needs to be self
+  if (empty($source)) {
     $source = '@none';
   }
   // test for components option
