@@ -477,9 +477,9 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
         }
       break;
       default:
-        $tmp = _drush_recipes_argument_to_target($items);
-        $tmp['command'] = $call;
-        $calls[] = $tmp;
+        // need to shift call to the front
+        array_unshift($items, $call);
+        $calls[] = _drush_recipes_argument_to_target($items);
       break;
     }
   }
@@ -1399,7 +1399,7 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
   // catch to make sure we don't fall into a deep infinite loop of recursive calls
   if ($indent > DRUSH_RECIPES_MAX_RECURSION) {
     // tell people in the event they triggered this and are confused
-    drush_log(dt('There is most likely a problem with your logic for this recipe series. It was about to make a call 5 levels down in its referenced call logic, and prevented this from happening to avoid an infinite loop. If you know what you are doing, increase DRUSH_RECIPES_MAX_RECURSION. If you think the current value is too low, please file an issue in the issue queue.'), 'error');
+    drush_log(dt('There is most likely a problem with your logic for this recipe series. It was about to make a call @num levels down in its referenced call logic, and prevented this from happening to avoid an infinite loop. If you know what you are doing, increase DRUSH_RECIPES_MAX_RECURSION. If you think the current value is too low, please file an issue in the issue queue.', array('@num' => DRUSH_RECIPES_MAX_RECURSION)), 'error');
     return array();
   }
   if ($list && $indent === 1) {

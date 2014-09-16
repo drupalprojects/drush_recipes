@@ -1,7 +1,7 @@
 {
   "name": "Standard Baseline",
   "drush_recipes_api": "1.0",
-  "weight": "-1",
+  "weight": "0",
   "core": "7",
   "recipe": [
     "core_above_core.drecipe",
