@@ -1026,8 +1026,9 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
             if (!isset($command['target'])) {
               $command['target'] = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
             }
+            // if no target is set we should utilize @self
             if (empty($command['target'])) {
-              $command['target'] = '@none';
+              $command['target'] = '@self';
             }
             if (!isset($command['arguments'])) {
               $command['arguments'] = array();
