@@ -53,7 +53,6 @@ before_script:
   - sudo mkdir -p /var/www
   - sudo chown travis:travis /var/www
   - drush dl drupal --destination=/var/www --default-major=7 --drupal-project-rename=site1 --y
-  - sudo chown travis:travis site1
   - cp -r /var/www/site1 /var/www/site2
   # get drush recipes setup functions
   - sudo mkdir ~/.drush/
