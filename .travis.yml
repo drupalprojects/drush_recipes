@@ -51,11 +51,10 @@ before_script:
   #- echo 'sendmail_path = /bin/true' >> ~/.phpenv/versions/$(phpenv version-name)/etc/conf.d/travis.ini
   # establish elmsln package put in place the right way
   - sudo mkdir -p /var/www
-  - cd /var/www
-  - sudo mkdir site1
+  - sudo chown travis:travis /var/www
+  - drush dl drupal --destination=/var/www --default-major=7 --drupal-project-rename=site1 --y
   - sudo chown travis:travis site1
-  - sudo mkdir site2
-  - sudo chown travis:travis site2
+  - cp -r /var/www/site1 /var/www/site2
   # get drush recipes setup functions
   - sudo mkdir ~/.drush/
   - sudo chown -R travis:travis ~/.drush
