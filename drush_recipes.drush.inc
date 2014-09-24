@@ -105,7 +105,11 @@ function drush_recipes_drush_command() {
     'description' => dt('Toggle recording drush commands for a new recipe'),
     'aliases' => array('dvr'),
     'arguments' => array(
-      'state' => dt('State of recording, whether to start, pause, stop, or '),
+      'state' => dt('State of recording, whether to start, save, watch, pause, delete or stop'),
+    ),
+    'options' => array(
+      'test-run' => dt('Use this to test run recipe saving'),
+      'command' => dt('Used with dvr delete; either the command to delete or an array position'),
     ),
     'allow-additional-options' => TRUE,
     'examples' => array(
@@ -113,6 +117,8 @@ function drush_recipes_drush_command() {
         'Start recording drush commands to cache',
       'drush dvr save' =>
         'Save recording but don\'t stop recording after the fact',
+      'drush dvr save --test-run' =>
+        'Simulate saving recipe, this will be get printed to the screen',
       'drush dvr watch' =>
         'See what\'s currently been recorded',
       'drush dvr pause' =>
@@ -125,6 +131,8 @@ function drush_recipes_drush_command() {
         'Delete sql-sync commands from the current recording, if confirmed.',
       'drush dvr stop' =>
         'Stop recording to save a recipe then delete commandlist',
+      'drush dvr stop --test-run' =>
+        'Simulate stop/ saving recipe, this will be get printed to the screen',
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
@@ -1871,6 +1879,7 @@ function drush_drush_recipes_drush_recipe_recorder($state = 'start') {
     break;
     case 'delete':
       // allow for option to delete certain calls only
+      $deleted_command = FALSE;
       if ($delete = drush_get_option('command')) {
         $commands = _drush_recipes_get_recorded_commands();
         // allow for key targetting which you'd know based on watch command
@@ -1882,6 +1891,7 @@ function drush_drush_recipes_drush_recipe_recorder($state = 'start') {
           drush_print_r($commands[$delete]);
           if (drush_confirm("Are you sure you want to delete the following command from your dvr history?")) {
             unset($commands[$delete]);
+            $deleted_command = TRUE;
           }
           else {
             return drush_user_abort();
@@ -1895,6 +1905,7 @@ function drush_drush_recipes_drush_recipe_recorder($state = 'start') {
               drush_print_r($commands[$key]);
               if (drush_confirm("Are you sure you want to delete the following command from your dvr history?")) {
                 unset($commands[$key]);
+                $deleted_command = TRUE;
               }
             }
           }
@@ -1903,9 +1914,17 @@ function drush_drush_recipes_drush_recipe_recorder($state = 'start') {
         foreach ($commands as $command) {
           $tmp[] = $command;
         }
+        // write this back to the cache
         drush_cache_set(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), $tmp, 'drush_recipes');
-        drush_log(dt('@delete has been deleted from your dvr', array('@delete' => $delete)), 'ok');
+        // see if we found a command and deleted it
+        if ($deleted_command) {
+          drush_log(dt('@delete has been deleted from your dvr', array('@delete' => $delete)), 'ok');
           return TRUE;
+        }
+        else{
+          drush_log(dt('@delete command not found / removed from your dvr', array('@delete' => $delete)), 'warning');
+          return FALSE;
+        }
       }
       else {
         // clear whats been recorded
@@ -1940,7 +1959,7 @@ function drush_drush_recipes_drush_recipe_recorder($state = 'start') {
  */
 function _drush_recipes_write_recorded_recipe() {
   $calls = _drush_recipes_get_recorded_commands();
-  return _drush_drush_recipes_drush_write_recipe($calls);
+  return _drush_drush_recipes_drush_write_recipe($calls, drush_get_option('test-run', FALSE));
 }
 
 /**

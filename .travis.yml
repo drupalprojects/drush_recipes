@@ -60,7 +60,7 @@ before_script:
   - sudo mkdir ~/.drush/
   - sudo chown -R travis:travis ~/.drush
   - cd ~/.drush/
-  - git clone https://github.com/btopro/drush_recipes.git
+  - git clone https://github.com/drupalprojects/drush_recipes.git
   - drush cc drush
 
 script:
