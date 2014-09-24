@@ -96,7 +96,7 @@ function drush_recipes_drush_command() {
     'description' => dt('Validate a saved recipe will run if built from scratch'),
     'aliases' => array('valid-recipe'),
     'examples' => array(
-      'drush dvr dr_security' =>
+      'drush valid-recipe dr_security' =>
         'Validate that dr_security will work if cooked.',
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
