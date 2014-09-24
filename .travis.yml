@@ -8,7 +8,6 @@ php:
 
 matrix:
   allow-failures:
-    - php: 5.5
     - php: hhvm
 
   env:
@@ -53,18 +52,51 @@ before_script:
   # establish elmsln package put in place the right way
   - sudo mkdir -p /var/www
   - cd /var/www
-  - sudo mkdir drush_recipes
-  - sudo chown travis:travis drush_recipes
-  # drush functions
+  - sudo mkdir site1
+  - sudo chown travis:travis site1
+  - sudo mkdir site2
+  - sudo chown travis:travis site2
+  # get drush recipes setup functions
   - sudo mkdir ~/.drush/
   - sudo chown -R travis:travis ~/.drush
   - cd ~/.drush/
   - git clone https://github.com/btopro/drush_recipes.git
+  - drush cc drush
 
 script:
-  - cd /var/www/drush_recipes
+  # run build scripts against site1
+  - cd /var/www/site1
+  - drush dvr start
   - drush si minimal --y
-  - drush cook dr_security --y
+  # run included recipes
+  - drush cook --y core_performance
+  - drush cook --y simple_performance_pack
+  - drush cook --y dr_core_settings
+  - drush cook --y dr_security
+  - drush cook --y dr_security_owasp
+  - drush cook --y dr_security_corp
+  - drush cook --y core_above_core
+  - drush cook --y crufty_core_off
+  - drush cook --y d7adminux
+  - drush cook --y d8ind7adminux
+  - drush cook --y dr_safe_upgrade
+  # build site2 via recipes
+  - cd /var/www/site2
+  - drush cook dr_si,standard_baseline --y --mlt-profile=standard --mlt-site-name="Site2"
+  # test some other commands
+  - drush ddt --test-run
+  - drush dvr watch
+  - drush dvr delete --command=si
+  - drush dvr watch
+  - drush dvr pause
+  - drush status
+  - drush dvr start
+  - drush cc all
+  - drush dvr watch
+  - drush dvr delete --y
+  - drush dvr watch
+  #- drush dvr save
+  #- drush dvr stop
 after_script:
   - drush dlr
 
