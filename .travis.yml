@@ -55,7 +55,6 @@ before_script:
   - drush dl drupal --destination=/var/www --default-major=7 --drupal-project-rename=site1 --y
   - cp -r /var/www/site1 /var/www/site2
   # get drush recipes setup functions
-  - sudo mkdir ~/.drush/
   - sudo chown -R travis:travis ~/.drush
   - cd ~/.drush/
   - git clone https://github.com/drupalprojects/drush_recipes.git
@@ -91,10 +90,10 @@ script:
   - drush dvr start
   - drush cc all
   - drush dvr watch
+  - drush dvr save --test-run
   - drush dvr delete --y
   - drush dvr watch
-  #- drush dvr save
-  #- drush dvr stop
+  - drush dvr stop --test-run
 after_script:
   - drush dlr
 
