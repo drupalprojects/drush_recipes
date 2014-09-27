@@ -20,7 +20,7 @@
         "locale": "[locale]",
         "clean-url": "[clean-url]",
         "site-name": "[site-name]",
-        "site-mail": "[site-mail]",
+        "sites-mail": "[sites-mail]",
         "sites-subdir": "[sites-subdir]"
       },
       "tokens": {
