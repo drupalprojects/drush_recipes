@@ -1052,15 +1052,18 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
             drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
           }
           else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
-            // shift array keys forward if 0 is set to avoid issues
-            if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][0])) {
-              array_unshift($command[DRUSH_RECIPES_FORMAT_CONDITIONAL],'');
-              unset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][0]);
+            $default = FALSE;
+            // check for a default case which allows us to pass --y successfully
+            if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'])) {
+              $default = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'];
             }
             // force a selection to be made
-            while (!$which = drush_choice($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]));
-            // load up which based on array position selected from conditional
-            $which = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which];
+            while (!$which = drush_choice_with_custom_defaults($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $default, $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]));
+            drush_print($which);
+            // @todo fix inconsistent return data from drush_choice_with_custom_defaults
+            if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which])) {
+              $which = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which];
+            }
             drush_log(dt('Adding ingredient: ') . $which, 'ok');
             // recursive since they just selected a reference
             drush_drush_recipes_drush_cook_recipes(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $which), TRUE);
@@ -1496,10 +1499,15 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
         }
       break;
       case DRUSH_RECIPES_FORMAT_CONDITIONAL:
-        //  conditional is most complex so processing has to happen at run time
+        //  conditional is complex so processing has to happen at run time
         $drush[] = $call;
         if ($list) {
-          drush_print(_drush_recipes_indent($indent+1) . 'CONDITIONAL: ' . implode(' OR ', $call[DRUSH_RECIPES_FORMAT_CONDITIONAL]));
+          $out = implode(' OR ', $call[DRUSH_RECIPES_FORMAT_CONDITIONAL]);
+          // communicate the default value if one is set
+          if (isset($call[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'])) {
+            $out = str_replace($call[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'], '(default) ' . $call[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'], $out);
+          }
+          drush_print(_drush_recipes_indent($indent+1) . 'CONDITIONAL: ' . $out);
         }
       break;
       case DRUSH_RECIPES_FORMAT_ARGUMENT:
