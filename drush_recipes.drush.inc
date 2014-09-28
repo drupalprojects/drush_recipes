@@ -706,14 +706,14 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALS
           $item = (string)$item[0];
         }
         // support referencing make files which we shorthand to a drush call
-        elseif (count($item) == 1 && strpos($item[0], '.make')) {
+        else if (count($item) == 1 && strpos($item[0], '.make')) {
           $item = array(
             'command' => 'make',
             'arguments' => array(str_replace('.make', '', $item[0])),
           );
         }
         // support conditionals
-        elseif (count($item) == 1 && strpos($item[0], 'c') === 0) {
+        else if (count($item) == 1 && strpos($item[0], 'c') === 0) {
           $conditions = array();
           $condkey = 0;
           while ($condinput != 'x') {
@@ -725,7 +725,7 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALS
               $condkey++;
               $conditions[$condkey] = (string)$condinput;
             }
-            elseif ($condinput == 'x') {
+            else if ($condinput == 'x') {
               drush_log(dt('Conditional complete'), 'ok');
             }
             else {
@@ -745,7 +745,7 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALS
           );
         }
         // easiest case
-        elseif ($item[0] == 'drush') {
+        else if ($item[0] == 'drush') {
           array_shift($item);
           $item = _drush_recipes_argument_to_target($item);
         }
@@ -1250,7 +1250,7 @@ function _drush_recipes_drupal_system_listing($mask, $directory, $key = 'name', 
     $searchdir[] = drush_get_context('DRUSH_SITE_WIDE_CONFIGURATION');
     $searchdir[] = dirname(__FILE__) . '/..';
   }
-  elseif (!in_array($directory, array('drush-system', 'drecipes', 'themes', 'modules'))) {
+  else if (!in_array($directory, array('drush-system', 'drecipes', 'themes', 'modules'))) {
     $searchdir[] = $directory;
   }
   else {
@@ -1571,10 +1571,10 @@ function _drush_recipes_pretty_json($json) {
     if ($in_escape) {
       $in_escape = false;
     }
-    elseif ($char === '"') {
+    else if ($char === '"') {
       $in_quotes = !$in_quotes;
     }
-    elseif (!$in_quotes) {
+    else if (!$in_quotes) {
       switch ($char) {
         case '}':
         case ']':
@@ -1604,7 +1604,7 @@ function _drush_recipes_pretty_json($json) {
         break;
       }
     }
-    elseif ($char === '\\') {
+    else if ($char === '\\') {
       $in_escape = true;
     }
 
@@ -1736,6 +1736,11 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
 
  /**
  * Replacement callback for drush_choice with better default handling.
+ * @todo  there seems to be some issues w/ this function when it comes to
+ * the output that it displays for selection. It is inconsistent as to if key
+ * or actual value should be supplied for the default. some times it returns
+ * the default, sometimes it returns the key selected but only if the key
+ * isn't the default. Default case seems wrong
  *
  * @param  array $options       an array of input
  * @param  string $default_value the default value if nothing selected
@@ -1743,97 +1748,95 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
  * @param  string $label         !value, !key or !number for listing
  * @return string                value selected, otherwise $default_value
  */
-function drush_choice_with_custom_defaults($options, $default_value, $prompt = 'Enter a number.', $label = '!value'){
+function drush_choice_with_custom_defaults($options, $default_value, $prompt = 'Enter a number.', $label = '!value') {
   print dt($prompt) . "\n";
-  //Make sure array has the correct row and column padding layout.
+  // Make sure array has the correct row and column padding layout.
   $array_pad = 0;
   foreach ($options as $key => $option) {
-    if(is_array($option) && (count($option) > $array_pad)){
+    if (is_array($option) && (count($option) > $array_pad)) {
       $array_pad = count($option);
     }
   }
-  //check to see if the $default_value is not set.  If no, populate with cancel
-  if(is_null($default_value)){
+  // check to see if the $default_value is not set.  If no, populate with cancel
+  if (is_null($default_value)) {
     $default_value_test = 'Cancel';
   }
-  else{
-    //else we set the $default_value to the inputted value.
+  else {
+    // else we set the $default_value to the inputted value.
      $default_value_test = $default_value;
   }
 
-  //may have to change the following values to meet standard of array syntax.
+  // may have to change the following values to meet standard of array syntax.
   $default_array = array('[0]', ':', $default_value_test);
   $rows[] = array_pad($default_array, $array_pad + 2, '');
   $selection_number = 0;
   foreach ($options as $key => $option) {
-    if((substr($key, 0, 3) == '-- ') && (substr($key, -3) == ' --')){
+    if ((substr($key, 0, 3) == '-- ') && (substr($key, -3) == ' --')) {
       $rows[] = array_pad(array('', '', $option), $array_pad + 2, '');
     }
+    else if ($option != $default_value_test) {
+      $selection_number++;
+      $row = array("[$selection_number]", ':');
+      if (is_array($option)) {
+        $row = array_merge($row, $option);
+      }
+      else {
+        $row[] = dt($label, array('!number' => $selection_number, '!key' => $key, '!value' => $option));
+      }
+      $rows[] = $row;
+      $selection_list[$selection_number] = $key;
+    }
+  }
+  foreach ($rows as $row) {
+    // gets the intial value of the array.
+    if (current($row) == '[0]') {
+      for ($i = 0; $i < 1; $i++) {
+       $initial_rows_value = $row[2];
+      }
+    }
     else{
-      if($option != $default_value_test){
-        $selection_number++;
-        $row = array("[$selection_number]", ':');
-          if(is_array($option)){
-            $row = array_merge($row, $option);
-          }
-          else{
-            $row[] = dt($label, array('!number' => $selection_number, '!key' => $key, '!value' => $option));
-          }
-        $rows[] = $row;
-        $selection_list[$selection_number] = $key;
-        }
+      // check to see if intital string and current string are equal.
+      if (strcmp($initial_rows_value, end($row)) == 0) {
+        array_splice($rows, 1, -1);
+        // if we split, then we have to rebuild the numbering of the array.
       }
     }
+  }
+  drush_print_table($rows);
+  drush_print_pipe(array_keys($options));
 
-    foreach ($rows as $row) {
-      //gets the intial value of the array.
-      if(current($row) == '[0]'){
-        for($i = 0; $i < 1; $i++){
-         $initial_rows_value = $row[2];
-        }
-      }
-      else{
-        //check to see if intital string and current string are equal.
-        if(strcmp($initial_rows_value, end($row)) == 0){
-          array_splice($rows, 1, -1);
-          //if we split, then we have to rebuild the numbering of the array.
-        }
-      }
+  // If user specifies choice (eg choice that isn't default)
+  // then make a selection and reprompt if the choice is not an available option
+  if (($choice = drush_get_option('choice', FALSE)) !== FALSE) {
+    // first see if choice is one of the symbolic options
+    if (array_key_exists($choice, $options)) {
+      return $choice;
     }
-    drush_print_table($rows);
-    drush_print_pipe(array_keys($options));
+    else if (array_key_exists($choice, $selection_list)) {
+      return $selection_list[$choice];
+    }
+    // do something here to reprompt
+    return FALSE;
+  }
 
-    //If user specifies choice (eg choice that isn't default)
-    //then make a selection and reprompt if the choice is not an available option
-    if(($choice = drush_get_option('choice', FALSE)) !== FALSE){
-      //first see if choice is one of the symbolic options
-      if(array_key_exists($choice, $options)){
-        return $choice;
-      }
-      elseif(array_key_exists($choice, $selection_list)){
-        return $selection_list[$choice];
-      }
-      //do something here to reprompt
-      return FALSE;
+  // if the user supplied the default answer
+  if (!drush_get_context('DRUSH_NEGATIVE') && !drush_get_context('DRUSH_AFFIRMATIVE') && !drush_get_context('DRUSH_PIPE')) {
+    while ($line = trim(fgets(STDIN))) {
+      return $selection_list[$line];
     }
+  }
 
-    //If the user supplied the default answer
-    if(!drush_get_context('DRUSH_NEGATIVE') && !drush_get_context('DRUSH_AFFIRMATIVE') && !drush_get_context('DRUSH_PIPE')){
-      while($line = trim(fgets(STDIN))){
-        return $selection_list[$line];
-      }
-    }
+  // if only one option in the array
+  if (drush_get_context('DRUSH_AFFIRMATIVE') && (count($options) == 1)) {
+    return $selection_list[0];
+  }
+  // change this to be the default.
+  if ($default_value == 'Cancel') {
+     drush_print(dt('Cancelled'));
+     return FALSE;
+  }
 
-    //If only one option in the array
-    if(drush_get_context('DRUSH_AFFIRMATIVE') && (count($options) == 1)){
-      return $selection_list[0];
-    }
-    //change this to be the default.
-    if($default_value == 'Cancel'){
-       drush_print(dt('Cancelled'));
-       return FALSE;
-    }
-    return $default_array[2];
+  return $default_array[2];
 }
 
 /**
