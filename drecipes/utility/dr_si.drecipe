@@ -20,7 +20,7 @@
         "locale": "[locale]",
         "clean-url": "[clean-url]",
         "site-name": "[site-name]",
-        "sites-mail": "[sites-mail]",
+        "site-mail": "[site-mail]",
         "sites-subdir": "[sites-subdir]"
       },
       "tokens": {
@@ -35,7 +35,7 @@
         "[locale]": "location",
         "[clean-url]": "Clean URL support",
         "[site-name]": "Name of the site",
-        "[sites-mail]": "From: for system mailings.",
+        "[site-mail]": "From: for system mailings.",
         "[sites-subdir]": "Name of directory under sites which should be created. Only needed when the subdirectory does not already exist."
       },
       "defaults": {
@@ -49,7 +49,7 @@
         "[locale]": "",
         "[clean-url]": "1",
         "[site-name]": "'Your new drupal site'",
-        "[sites-mail]": "admin@example.com",
+        "[site-mail]": "admin@example.com",
         "[sites-subdir]": "default"
       }
     }
