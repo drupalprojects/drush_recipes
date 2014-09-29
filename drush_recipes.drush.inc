@@ -1862,7 +1862,8 @@ function drush_drush_recipes_drush_validate_recipes($list = '') {
       return drush_user_abort();
     }
   }
-  return dt('All recipes were valid!');
+  drush_log(dt('All recipes were valid!'), 'ok');
+  return TRUE;
 }
 
 /**
