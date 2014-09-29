@@ -1953,9 +1953,16 @@ function drush_drush_recipes_drush_recipe_recorder($state = 'start') {
     case 'stop':
       // clear the state of command recording to stop recording
       drush_cache_clear_all(drush_get_cid(DRUSH_RECIPES_LOGGING_CID), 'drush_recipes');
-      // save the recipe
-      _drush_recipes_write_recorded_recipe();
-      drush_cache_clear_all(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), 'drush_recipes');
+      $commands = _drush_recipes_get_recorded_commands();
+      // if not empty save the recipe
+      if(!empty($commands)){
+        _drush_recipes_write_recorded_recipe();
+        drush_cache_clear_all(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), 'drush_recipes');
+      }
+      // if comand array value is empty, do not write to a recipe. 
+      else{
+        drush_log(dt('Cannot write: No commands recorded in dvr'), 'error');
+      }
     break;
     default:
       drush_log(dt('Invalid recorder state.'), 'error');
