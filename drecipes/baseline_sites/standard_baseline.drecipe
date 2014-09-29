@@ -6,9 +6,12 @@
   "recipe": [
     "core_above_core.drecipe",
     "dr_security_core_settings.drecipe",
+    "simple_performance_pack.drecipe",
     {
-      "command": "cook",
-      "arguments": ["simple_performance_pack"]
+      "command": "en",
+      "arguments": [
+        "profiler_builder"
+      ]
     },
     "d7adminux.drecipe"
   ],
