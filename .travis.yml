@@ -8,6 +8,7 @@ php:
 
 matrix:
   allow-failures:
+    - php: 5.5
     - php: hhvm
 
   env:
@@ -64,11 +65,11 @@ script:
   # run build scripts against site1
   - cd /var/www/site1
   - drush dvr start
-  - drush si minimal --y
+  - drush site-install -y --db-url=mysql://root@localhost/travisdb --db-su='root' --db-su-pw=''
   # run included recipes
   - drush cook --y core_performance
   - drush cook --y simple_performance_pack
-  - drush cook --y dr_core_settings
+  - drush cook --y dr_security_core_settings
   - drush cook --y dr_security
   - drush cook --y dr_security_owasp
   - drush cook --y dr_security_corp
@@ -76,10 +77,12 @@ script:
   - drush cook --y crufty_core_off
   - drush cook --y d7adminux
   - drush cook --y d8ind7adminux
+  - drush dl registry_rebuild --y
+  - drush dl drush_ecl --y
   - drush cook --y dr_safe_upgrade
   # build site2 via recipes
   - cd /var/www/site2
-  - drush cook dr_si,standard_baseline --y --mlt-profile=standard --mlt-site-name="Site2"
+  - drush cook dr_si,standard_baseline --y --mlt-profile=standard --mlt-db-url=mysql://root@localhost/travisdb --mlt-site-name="Site2"
   # test some other commands
   - drush ddt --test-run
   - drush dvr watch
@@ -93,6 +96,7 @@ script:
   - drush dvr save --test-run
   - drush dvr delete --y
   - drush dvr watch
+  # first test
   - drush dvr stop --test-run
 after_script:
   - drush dlr
