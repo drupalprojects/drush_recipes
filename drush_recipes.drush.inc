@@ -1650,7 +1650,7 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
   $selection = array();
   // allow for falling back if they make a mistake
   $original = $command;
-  $print = 'drush ';
+  $print = 'drush';
   // loop through tokens requesting input from the user
   foreach ($command['tokens'] as $token => $description) {
     $default = NULL;
@@ -1658,8 +1658,9 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
     // check for option at commandline, this overrides empty AND default values
     // this means you can cook a recipe with these values downsteam by supplying
     // the option at run time: drush cook recipe --mlt-token=value
-    if ($default = drush_get_option('mlt-' . str_replace('[', '', str_replace(']', '', $token)))) {
-      // stupid but this allows for NULL string setting as the default case
+    $default = drush_get_option('mlt-' . str_replace('[', '', str_replace(']', '', $token)));
+    // use the mlt-token style so long as its not NULL
+    if ($default !== NULL) {
       $default_set = TRUE;
     }
     // see if we have a supplied default if the user is skipping through
@@ -1892,7 +1893,7 @@ function drush_drush_recipes_drush_recipe_recorder($state = 'start') {
     case 'delete':
       // allow for option to delete certain calls only
       $deleted_command = FALSE;
-      if ($delete = drush_get_option('command')) {
+      if (($delete = drush_get_option('command')) !== NULL) {
         $commands = _drush_recipes_get_recorded_commands();
         // allow for key targetting which you'd know based on watch command
         if (is_numeric($delete)) {
@@ -1959,7 +1960,7 @@ function drush_drush_recipes_drush_recipe_recorder($state = 'start') {
         _drush_recipes_write_recorded_recipe();
         drush_cache_clear_all(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), 'drush_recipes');
       }
-      // if comand array value is empty, do not write to a recipe. 
+      // if comand array value is empty, do not write to a recipe.
       else{
         drush_log(dt('Cannot write: No commands recorded in dvr'), 'error');
       }
@@ -2056,7 +2057,8 @@ function _drush_recipes_validate_recipe($recipe) {
 function _drush_recipes_get_recorded_commands() {
   $commands = array();
   $command_object = drush_cache_get(drush_get_cid(DRUSH_RECIPES_COMMAND_CID), 'drush_recipes');
-  if ($command_object) {
+  // ensure cache bin data isset
+  if (isset($command_object->data)) {
     $commands = $command_object->data;
   }
   return $commands;
