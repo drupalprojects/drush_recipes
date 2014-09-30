@@ -1008,18 +1008,28 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
             drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_MADLIB);
             // allow for targetted type overriding
             drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_MADLIB . '_command_invoke_alter', $command);
-            // ensure process invoking won't fail
-            if (!isset($command['target'])) {
-              $command['target'] = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
+            // ensure defaults are set for command object
+            _drush_recipes_command_defaults($command);
+            $option_out = '';
+            foreach ($command['options'] as $key => $val) {
+              $option_out .= ' --' . $key . '=' . $val;
             }
-            if (!isset($command['arguments'])) {
-              $command['arguments'] = array();
+            drush_log(dt('Adding Madlib ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out, 'ok');
+            // special exception for commands that run batch jobs as they will
+            // exit into the background process silently
+            if (!in_array($command['command'], array('httprl-self-spider', 'httprl-self-request', 'entitycache-load', 'hss', 'hsr', 'ecl'))) {
+              drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
             }
-            if (!isset($command['options'])) {
-              $command['options'] = array();
+            else {
+              // this is the simple method for running when non interactive
+              $smash_command = 'drush ' . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out;
+              drush_print($smash_command);
+              drush_shell_exec($smash_command);
+              $shell_output = drush_shell_exec_output();
+              foreach ($shell_output as $shell) {
+                drush_print($shell);
+              }
             }
-            drush_log(dt('Adding Madlib ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . implode(' ', $command['options']), 'ok');
-            drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
           }
           else if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
             // allow for super simple uncooking of recipe
@@ -1030,26 +1040,28 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
             drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_TARGET);
             // allow for targetted type overriding
             drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_TARGET . '_command_invoke_alter', $command);
-            // ensure process invoking won't fail
-            if (!isset($command['target'])) {
-              $command['target'] = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
-            }
-            // if no target is set we should utilize @self
-            if (empty($command['target'])) {
-              $command['target'] = '@self';
-            }
-            if (!isset($command['arguments'])) {
-              $command['arguments'] = array();
-            }
-            if (!isset($command['options'])) {
-              $command['options'] = array();
-            }
+            // ensure defaults are set for command object
+            _drush_recipes_command_defaults($command);
             $option_out = '';
             foreach ($command['options'] as $key => $val) {
               $option_out .= ' --' . $key . '=' . $val;
             }
             drush_log(dt('Adding ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out, 'ok');
-            drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
+            // special exception for commands that run batch jobs as they will
+            // exit into the background process silently
+            if (!in_array($command['command'], array('httprl-self-spider', 'httprl-self-request', 'entitycache-load', 'hss', 'hsr', 'ecl'))) {
+              drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
+            }
+            else {
+              // this is the simple method for running when non interactive
+              $smash_command = 'drush ' . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out;
+              drush_print($smash_command);
+              drush_shell_exec($smash_command);
+              $shell_output = drush_shell_exec_output();
+              foreach ($shell_output as $shell) {
+                drush_print($shell);
+              }
+            }
           }
           else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
             $default = FALSE;
@@ -1106,6 +1118,48 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
   }
   // allow projects to react after cooking
   drush_command_invoke_all_ref('drush_recipes_post_cook_alter', $list, $recurse);
+}
+
+/**
+ * Ensure that defaults are set for the command object
+ * @param  array $command The command about to be executed
+ */
+function _drush_recipes_command_defaults(&$command) {
+  // ensure process invoking won't fail
+  if (!isset($command['target'])) {
+    $command['target'] = drush_get_context('DRUSH_TARGET_SITE_ALIAS');
+  }
+  // if no target is set we should utilize @self
+  if (empty($command['target'])) {
+    $command['target'] = '@self';
+  }
+  if (!isset($command['arguments'])) {
+    $command['arguments'] = array();
+  }
+  if (!isset($command['options'])) {
+    $command['options'] = array();
+  }
+  // these are the options that we support passing down
+  $options = array(
+    'uri' => 'l',
+    'root' => 'r',
+    'verbose' => 'v',
+    'debug' => 'd',
+    'yes' => 'y',
+    'no' => 'n',
+    'simulate' => 's',
+    'pipe' => 'p',
+    'interactive' => 'ia',
+  );
+  // test if these are set as options globally
+  foreach ($options as $key => $short) {
+    if (($val = drush_get_option($key, NULL)) !== NULL && !isset($command['options'][$key])) {
+      $command['options'][$key] = $val;
+    }
+    if (($val = drush_get_option($short, NULL)) !== NULL && !isset($command['options'][$short])) {
+      $command['options'][$short] = $val;
+    }
+  }
 }
 
 /**
