@@ -1458,10 +1458,22 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
         // see if we should print nicely formatted debug stuff
         if ($list) {
           // format the same as target based
-          $print = 'MADLIB: drush ' . $call['target'] . ' ' . $call['command'] . ' ' . implode(' ', $call['arguments']);
+          $print = 'MADLIB: drush';
+          // target is optional and will inherit higher level context if not set
+          if (isset($call['target']) && !empty($call['target'])) {
+            $print .= ' ' . $call['target'];
+          }
+          // command is required
+          $print .= ' ' . $call['command'];
+          // args are optional
+          if (isset($call['arguments']) && !empty($call['arguments'])) {
+            $print .= ' ' . implode(' ', $call['arguments']);
+          }
+          // options are optional
           if (isset($call['options']) && !empty($call['options'])) {
-            // make sure first option gets the dashes it needs
-            $print .= _drush_recipes_indent($indent+1) . "\n--" . implode('--', $call['options']);
+            foreach ($call['options'] as $key => $value) {
+              $print .= ' --' . $key . '=' . $value;
+            }
           }
           // defaults
           if (isset($call['defaults']) && !empty($call['defaults'])) {
@@ -1650,7 +1662,7 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
   $selection = array();
   // allow for falling back if they make a mistake
   $original = $command;
-  $print = 'drush';
+  $print = 'drush ';
   // loop through tokens requesting input from the user
   foreach ($command['tokens'] as $token => $description) {
     $default = NULL;
