@@ -678,7 +678,7 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALS
       3 => 'utility',
     );
     // prompt for the user with the default option
-    while (!$type = drush_choice_with_custom_defaults($recipe_types, 'add-on', dt('What type of recipe is this?'), '!value'))
+    while (!$type = drush_choice_with_custom_defaults($recipe_types, 'add-on', dt('What type of recipe is this?'), '!value'));
     // author is optional
     $author = drush_prompt(dt('Recipe author'), NULL, FALSE);
   }
@@ -768,11 +768,16 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALS
     'recipe' => $items,
     'metadata' => array(
       'type' => $type,
-      'description' => $description,
       'version' => $version,
-      'author' => $author,
     )
   );
+  // ensure that author and description aren't set to null
+  if (!is_null($author)) {
+    $recipe['metadata']['author'] = $author;
+  }
+  if (!is_null($description)) {
+    $recipe['metadata']['description'] = $description;
+  }
 
   $formats = array(
     'json' => 'json',
