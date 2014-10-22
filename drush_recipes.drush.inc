@@ -489,7 +489,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
   // Like if you were doing dev to prod target diffing and don't care about
   // permissions differences for the admin user role.
   drush_command_invoke_all_ref('drush_recipes_target_diff_drush_alter', $drush, $source_settings, $destination_settings);
-  $calls = $end_calls = array();
+  $calls = $end_calls = $role_calls = $perm_calls = array();
   // now we convert these into drush calls and feed it to its own recipe
   foreach ($drush as $call => $items) {
     switch ($call) {
@@ -539,7 +539,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       // create roles
       case 'rcrt':
         foreach ($items as $rid => $name) {
-          $calls['aaa_create_role' . $rid] = array(
+          $role_calls[$rid] = array(
             'command' => 'rcrt',
             'arguments' => array(
               "'$rid'",
@@ -563,7 +563,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       case 'rap':
         foreach ($items as $rid => $permissions) {
           foreach ($permissions as $permission => $bool) {
-            $calls['zzz_add_perm' . $rid . $permission] = array(
+            $perm_calls[$rid . $permission] = array(
               'command' => 'rap',
               'arguments' => array(
                 "'$rid'",
@@ -602,7 +602,13 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       break;
     }
   }
-  // allow for late calls to be added to the end
+  // shift roles to end but before perms and _last at the end
+  foreach ($role_calls as $rcall) {
+    array_push($calls, $rcall);
+  }
+  foreach ($perm_calls as $pcall) {
+    array_push($calls, $pcall);
+  }
   foreach ($end_calls as $end) {
     array_push($calls, $end);
   }
