@@ -789,13 +789,18 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALS
       $major_version = DRUSH_RECIPES_CORE_COMPATIBILITY;
     }
     $core = drush_prompt(dt('Drupal core'), $major_version);
-    $recipe_types = array(
-      1 => 'add-on',
-      2 => 'routine',
-      3 => 'utility',
-    );
-    // prompt for the user with the default option
-    while (!$type = drush_choice_with_custom_defaults($recipe_types, 'add-on', dt('What type of recipe is this?'), '!value'));
+    if (drush_get_option('for-drup', FALSE)) {
+      $type = 'upgrade';
+    }
+    else {
+      $recipe_types = array(
+        1 => 'add-on',
+        2 => 'routine',
+        3 => 'utility',
+      );
+      // prompt for the user with the default option
+      while (!$type = drush_choice_with_custom_defaults($recipe_types, 'add-on', dt('What type of recipe is this?'), '!value'));
+    }
     // author is optional
     $author = drush_prompt(dt('Recipe author'), NULL, FALSE);
   }
@@ -918,6 +923,10 @@ function _drush_drush_recipes_drush_write_recipe($items = NULL, $test_run = FALS
   );
   // start writing to file if they selected that
   if (!$test_run && drush_choice_with_custom_defaults($output_locations, 'write to file', dt('Write to file or print to screen?')) === 'write to file') {
+    // allow for-drup flag to auto append timestamp
+    if (drush_get_option('for-drup', FALSE)) {
+      $machine_name .= '_' . time();
+    }
     $file = $machine_name . '.' . DRUSH_RECIPE_EXTENSION;
     $location = drush_prompt(dt('Location to write recipe'), drush_get_context('DRUSH_PER_USER_CONFIGURATION') . '/drecipes');
     // test directory exists / create it if we can
