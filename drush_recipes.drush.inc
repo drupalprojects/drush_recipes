@@ -1152,7 +1152,7 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
             drush_log(dt('Adding Madlib ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out, 'ok');
             // special exception for commands that run batch jobs as they will
             // exit into the background process silently
-            if (!in_array($command['command'], array('httprl-self-spider', 'httprl-self-request', 'entitycache-load', 'hss', 'hsr', 'ecl'))) {
+            if (!in_array($command['command'], _drush_recipes_require_shell_exec())) {
               drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
             }
             else {
@@ -1184,7 +1184,7 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
             drush_log(dt('Adding ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out, 'ok');
             // special exception for commands that run batch jobs as they will
             // exit into the background process silently
-            if (!in_array($command['command'], array('httprl-self-spider', 'httprl-self-request', 'entitycache-load', 'hss', 'hsr', 'ecl'))) {
+            if (!in_array($command['command'], _drush_recipes_require_shell_exec())) {
               drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
             }
             else {
@@ -1253,6 +1253,37 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
   }
   // allow projects to react after cooking
   drush_command_invoke_all_ref('drush_recipes_post_cook_alter', $list, $recurse);
+}
+
+/**
+ * Helper function to list commands that require exec in order to finish
+ * @return array  drush commands that require shell to run correctly.
+ */
+function _drush_recipes_require_shell_exec() {
+  // core commands with known issues
+  $exec = array(
+    'php-eval',
+    'eval',
+    'ev'
+  );
+  // hook for commands that require background execution
+  drush_command_invoke_all_ref('drush_recipes_require_shell_exec_alter', $exec);
+  return $exec;
+}
+
+/**
+ * Implements hook_drush_recipes_require_shell_exec_alter().
+ * @param  array $exec drush commands that require shell to run correctly.
+ */
+function drush_recipes_drush_recipes_require_shell_exec_alter(&$exec) {
+  // contrib commands I know that have issues otherwise
+  // these require batch processing which fails if interactive
+  $exec[] = 'httprl-self-spider';
+  $exec[] = 'hss';
+  $exec[] = 'httprl-self-request';
+  $exec[] = 'hsr';
+  $exec[] = 'entitycache-load';
+  $exec[] = 'ecl';
 }
 
 /**
