@@ -1326,6 +1326,28 @@ function _drush_recipes_command_defaults(&$command) {
       $command['options'][$short] = $val;
     }
   }
+  // pull in the context of the operation to get the appropriate root/uri
+  // this can be missed in the event that a command calls for two aliases
+  // such as a ddt command which wants to execute the command against the
+  // first target but drush pulls the options from the 2nd, effectively
+  // making the command compare A to B but then always applying the command
+  // to B and A was the intended target.
+  // This is required to allow the --make-it-so option flag on ddt function
+  // correctly, but would potentially trip up other complex calls; hence this
+  // windy explaination
+  $context = drush_get_context();
+  if (in_array($context['arguments'][0], array('drush-diff-targets-recipe', 'ddt')) && drush_get_option('make-it-so', FALSE)) {
+    if (isset($context['site-aliases'][$command['target']])) {
+      if (isset($context['site-aliases'][$command['target']]['root'])) {
+        unset($command['options']['r']);
+        $command['options']['root'] = $context['site-aliases'][$command['target']]['root'];
+      }
+      if (isset($context['site-aliases'][$command['target']]['uri'])) {
+        unset($command['options']['l']);
+        $command['options']['uri'] = $context['site-aliases'][$command['target']]['uri'];
+      }
+    }
+  }
 }
 
 /**
