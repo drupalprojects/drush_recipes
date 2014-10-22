@@ -86,6 +86,9 @@ function drush_recipes_drush_command() {
   $items['drush-write-recipe'] = array(
     'description' => dt('Interactive prompt to create a new recipe'),
     'aliases' => array('dwr'),
+    'options' => array(
+      'for-drup' => dt('Flag to indicate that this is an upgrade routine for use with the drup command.'),
+    ),
     'examples' => array(
       'drush dwr' =>
         'An interactive prompt will follow',
@@ -175,6 +178,9 @@ function drush_recipes_drush_command() {
       'pattern' => dt("Pattern of recipes to find"),
       'location' => dt("Location to search against for matching recipes"),
     ),
+    'options' => array(
+      'replay-from' => dt("Replay from a certain timestamp forward. This is useful if an update fails to apply for some reason."),
+    ),
     'aliases' => array('drup'),
     'examples' => array(
       'drush @devsite drup d7_dev /var/www/deployments/' =>
@@ -255,6 +261,10 @@ function drush_drush_recipes_upgrade($pattern, $location) {
       $last[$pattern] = $install_time;
     }
   }
+  // allow for replaying from a certain point in time via flag
+  if ($replay = drush_get_option('replay-from', FALSE)) {
+    $last[$pattern] = $replay;
+  }
   $matches = array();
   // scan each and match it against the alias if we can
   foreach ($recipes as $recipe) {
@@ -263,7 +273,7 @@ function drush_drush_recipes_upgrade($pattern, $location) {
       $basename = $recipe->basename;
       $num = array_pop(explode('_', str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $basename)));
       // if num is higher then stored value, we have new recipes to run!
-      if ($num > $last[$pattern]) {
+      if ($num >= $last[$pattern]) {
         $matches[$recipe->name] = array(
           'name' => $recipe->name,
           'path' => str_replace($recipe->basename, '', $recipe->filename),
