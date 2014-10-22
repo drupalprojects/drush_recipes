@@ -538,8 +538,11 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       break;
       // create roles
       case 'rcrt':
+        // remove the built in roles
+        unset($items['anonymous user']);
+        unset($items['authenticated user']);
         foreach ($items as $rid => $name) {
-          $role_calls[$rid] = array(
+          $role_calls[] = array(
             'command' => 'rcrt',
             'arguments' => array(
               "'$rid'",
@@ -577,7 +580,7 @@ function drush_drush_recipes_drush_diff_targets_recipe($source = NULL, $destinat
       case 'rmp':
         foreach ($items as $rid => $permissions) {
           foreach ($permissions as $permission => $bool) {
-            $calls['zzz_add_perm' . $rid . $permission] = array(
+            $calls[$rid . $permission] = array(
               'command' => 'rmp',
               'arguments' => array(
                 "'$rid'",
