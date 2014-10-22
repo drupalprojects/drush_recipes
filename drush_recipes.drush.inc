@@ -273,7 +273,7 @@ function drush_drush_recipes_upgrade($pattern, $location) {
       $basename = $recipe->basename;
       $num = array_pop(explode('_', str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $basename)));
       // if num is higher then stored value, we have new recipes to run!
-      if ($num > $last[$pattern]) {
+      if (is_numeric($num) && $num > $last[$pattern]) {
         $matches[$recipe->name] = array(
           'name' => $recipe->name,
           'path' => str_replace($recipe->basename, '', $recipe->filename),
