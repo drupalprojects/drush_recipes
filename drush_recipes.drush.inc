@@ -262,7 +262,8 @@ function drush_drush_recipes_upgrade($pattern, $location) {
     }
   }
   // allow for replaying from a certain point in time via flag
-  if ($replay = drush_get_option('replay-from', FALSE)) {
+  $replay = drush_get_option('replay-from', FALSE);
+  if ($replay !== FALSE) {
     $last[$pattern] = $replay;
   }
   $matches = array();
