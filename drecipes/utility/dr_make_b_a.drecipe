@@ -54,15 +54,18 @@
                 "[target2]"
             ],
             "options": {
-                "make-it-so": true
+                "make-it-so": true,
+                "components": "[components]"
             },
             "tokens": {
                 "[target1]": "new site you want to install / reimage",
-                "[target2]": "site you are patterning target1 off of"
+                "[target2]": "site you are patterning target1 off of",
+                "[components]": "what components do you want to compare in the diff"
             },
             "defaults": {
                 "[target1]": "@self",
-                "[target2]": "@none"
+                "[target2]": "@none",
+                "[components]": "modules,variables"
             }
         },
         {
