@@ -1,5 +1,5 @@
 {
-    "name": "Make B like A",
+    "name": "Make target1 like target2",
     "drush_recipes_api": "1.0",
     "weight": "0",
     "core": "7",
@@ -81,13 +81,13 @@
         },
         {
             "madlib": "true",
-            "command": "status",
-            "target": "[target2]",
+            "command": "uli",
+            "target": "[target1]",
             "tokens": {
-                "[target2]": "site you are patterning target1 off of"
+                "[target1]": "new site you want to install / reimage"
             },
             "defaults": {
-                "[target2]": "@self"
+                "[target1]": "@self"
             }
         }
     ],
@@ -95,6 +95,6 @@
         "type": 2,
         "version": "1.0",
         "author": "btopro",
-        "description": "madlib wrapper for ddt that re-images a new site to be like an existing one"
+        "description": "madlib wrapper for ddt that re-images target1 to be like target2"
     }
 }
