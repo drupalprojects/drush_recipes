@@ -13,7 +13,7 @@
             ],
             "options": {
                 "entity_type": "[ccr_entity_type]"
-            }
+            },
             "tokens": {
                 "[ccr_machine_name]": "content type",
                 "[ccr_field_machine_name]": "field type machine name",
