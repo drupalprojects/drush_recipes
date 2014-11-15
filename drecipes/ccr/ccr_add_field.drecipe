@@ -18,7 +18,8 @@
                 "[ccr_machine_name]": "content type",
                 "[ccr_field_machine_name]": "field type machine name",
                 "[ccr_field_type]": "field type",
-                "[ccr_field_widget]": "type of widget"
+                "[ccr_field_widget]": "type of widget",
+                "[ccr_entity_type]": "entity type"
             },
             "defaults": {
                 "[ccr_machine_name]": "page",
