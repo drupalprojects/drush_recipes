@@ -8,15 +8,15 @@
             "madlib": "TRUE",
             "command": "php-eval",
             "arguments": [
-                "\"node_type_save(array('type' => '[content_type]','name' => '[content_name]','base' => 'node_content','module' => 'node','has_title' => 1))\""
+                "\"node_type_save(array('type' => '[ccr_machine_name]','name' => '[ccr_human_name]','base' => 'node_content','module' => 'node','has_title' => 1))\""
             ],
             "tokens": {
-                "[content_type]": "Content type machine name",
-                "[content_name]": "Human readable name"
+                "[ccr_machine_name]": "Content type machine name",
+                "[ccr_human_name]": "Human readable name"
             },
             "defaults": {
-                "[content_type]": "page",
-                "[content_name]": "Page"
+                "[ccr_machine_name]": "page",
+                "[ccr_human_name]": "Page"
             }
         }
     ],
