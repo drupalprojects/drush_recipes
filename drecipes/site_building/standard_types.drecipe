@@ -26,7 +26,7 @@
             ],
             "options": {
                 "mlt-ccr_machine_name": "article",
-                "mlt-ccr_field_machine_name": "Article"
+                "mlt-ccr_human_name": "Article"
             }
         },
         {
