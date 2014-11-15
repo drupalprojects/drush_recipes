@@ -76,6 +76,7 @@ script:
   - drush cook --y crufty_core_off
   - drush cook --y d7adminux
   - drush cook --y d8ind7adminux
+  - drush cook ccr_create_type --y
   - drush dl registry_rebuild --y
   - drush dl drush_ecl --y
   - drush cook --y dr_safe_upgrade
