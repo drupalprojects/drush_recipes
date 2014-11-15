@@ -1,0 +1,54 @@
+{
+    "name": "Standard Types",
+    "drush_recipes_api": "1.0",
+    "weight": "0",
+    "core": "7",
+    "recipe": [
+        {
+            "command": "php-eval",
+            "arguments": [
+                "\"node_type_save(array('type' => 'page','name' => 'Page','base' => 'node_content','module' => 'node','has_title' => 1))\""
+            ],
+            "options": {
+                "yes": "1"
+            },
+            "target": "@self"
+        },
+        {
+            "command": "drush-cook-recipes",
+            "arguments": [
+                "ccr_create_type"
+            ],
+            "options": {
+                "y": true
+            }
+        },
+        {
+            "command": "php-eval",
+            "arguments": [
+                "\"node_type_save(array('type' => 'article','name' => 'Article','base' => 'node_content','module' => 'node','has_title' => 1))\""
+            ],
+            "options": {
+                "yes": "1"
+            },
+            "target": "@self"
+        },
+        {
+            "command": "drush-cook-recipes",
+            "arguments": [
+                "ccr_create_type"
+            ],
+            "options": {
+                "mlt-ccr_machine_name": "article",
+                "mlt-ccr_human_name": "Article",
+                "y": true
+            }
+        }
+    ],
+    "metadata": {
+        "type": "add-on",
+        "version": "1.0",
+        "author": "baf139",
+        "description": "The standard types to create during site install"
+    }
+}
