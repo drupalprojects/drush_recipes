@@ -33,6 +33,18 @@
             }
         },
         {
+            "command": "cc",
+            "arguments": [
+                "all"
+            ]
+        },
+        {
+            "command": "en",
+            "arguments": [
+                "devel"
+            ]
+        },
+        {
             "command": "uli"
         }
     ],
