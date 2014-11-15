@@ -1138,96 +1138,128 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
     foreach ($recipe_list as $commands) {
       foreach ($commands as $command) {
         if (is_array($command)) {
-          if (isset($command[DRUSH_RECIPES_FORMAT_MADLIB])) {
-            // allow for super simple uncooking of recipe
-            if (drush_get_option('simple-uncook')) {
-              _drush_recipes_simple_uncook($command['command']);
+          // evil time, let's support looping ingredient statements
+          $command['loop_pos'] = 1;
+          $finished = FALSE;
+          if (isset($command['loop'])) {
+            // 'x' means that we loop and allow user to keep doing it!
+            if ($command['loop'] == 'x') {
+              // do nothing we want this to let them keep running it
             }
-            // allow for generic overriding of this command
-            drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_MADLIB);
-            // allow for targetted type overriding
-            drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_MADLIB . '_command_invoke_alter', $command);
-            // ensure defaults are set for command object
-            _drush_recipes_command_defaults($command);
-            $option_out = '';
-            foreach ($command['options'] as $key => $val) {
-              $option_out .= ' --' . $key . '=' . $val;
-            }
-            drush_log(dt('Adding Madlib ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out, 'ok');
-            // special exception for commands that run batch jobs as they will
-            // exit into the background process silently
-            if (!in_array($command['command'], _drush_recipes_require_shell_exec())) {
-              drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
+            else if (is_int( (int) $command['loop'])) {
+              $command['loop'] = (int) $command['loop'];
             }
             else {
-              // this is the simple method for running when non interactive
-              $smash_command = 'drush ' . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out;
-              drush_print($smash_command);
-              drush_shell_exec($smash_command);
-              $shell_output = drush_shell_exec_output();
-              foreach ($shell_output as $shell) {
-                drush_print($shell);
-              }
+              drush_print('Loop value invalid, skipping capability', 'warning');
             }
           }
-          else if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
-            // allow for super simple uncooking of recipe
-            if (drush_get_option('simple-uncook')) {
-              _drush_recipes_simple_uncook($command['command']);
+          // support for looping each ingredient if requested
+          while (!$finished) {
+            if (isset($command[DRUSH_RECIPES_FORMAT_MADLIB])) {
+              // allow for super simple uncooking of recipe
+              if (drush_get_option('simple-uncook')) {
+                _drush_recipes_simple_uncook($command['command']);
+              }
+              // allow for generic overriding of this command
+              drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_MADLIB);
+              // allow for targetted type overriding
+              drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_MADLIB . '_command_invoke_alter', $command);
+              // ensure defaults are set for command object
+              _drush_recipes_command_defaults($command);
+              $option_out = '';
+              foreach ($command['options'] as $key => $val) {
+                $option_out .= ' --' . $key . '=' . $val;
+              }
+              drush_log(dt('Adding Madlib ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out, 'ok');
+              // special exception for commands that run batch jobs as they will
+              // exit into the background process silently
+              if (!in_array($command['command'], _drush_recipes_require_shell_exec())) {
+                drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
+              }
+              else {
+                // this is the simple method for running when non interactive
+                $smash_command = 'drush ' . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out;
+                drush_print($smash_command);
+                drush_shell_exec($smash_command);
+                $shell_output = drush_shell_exec_output();
+                foreach ($shell_output as $shell) {
+                  drush_print($shell);
+                }
+              }
             }
-            // allow for generic overriding of this command
-            drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_TARGET);
-            // allow for targetted type overriding
-            drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_TARGET . '_command_invoke_alter', $command);
-            // ensure defaults are set for command object
-            _drush_recipes_command_defaults($command);
-            $option_out = '';
-            foreach ($command['options'] as $key => $val) {
-              $option_out .= ' --' . $key . '=' . $val;
+            else if (isset($command[DRUSH_RECIPES_FORMAT_TARGET])) {
+              // allow for super simple uncooking of recipe
+              if (drush_get_option('simple-uncook')) {
+                _drush_recipes_simple_uncook($command['command']);
+              }
+              // allow for generic overriding of this command
+              drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, DRUSH_RECIPES_FORMAT_TARGET);
+              // allow for targetted type overriding
+              drush_command_invoke_all_ref('drush_recipes_' . DRUSH_RECIPES_FORMAT_TARGET . '_command_invoke_alter', $command);
+              // ensure defaults are set for command object
+              _drush_recipes_command_defaults($command);
+              $option_out = '';
+              foreach ($command['options'] as $key => $val) {
+                $option_out .= ' --' . $key . '=' . $val;
+              }
+              drush_log(dt('Adding ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out, 'ok');
+              // special exception for commands that run batch jobs as they will
+              // exit into the background process silently
+              if (!in_array($command['command'], _drush_recipes_require_shell_exec())) {
+                drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
+              }
+              else {
+                // this is the simple method for running when non interactive
+                $smash_command = 'drush ' . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out;
+                drush_print($smash_command);
+                drush_shell_exec($smash_command);
+                $shell_output = drush_shell_exec_output();
+                foreach ($shell_output as $shell) {
+                  drush_print($shell);
+                }
+              }
             }
-            drush_log(dt('Adding ingredient: drush ') . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out, 'ok');
-            // special exception for commands that run batch jobs as they will
-            // exit into the background process silently
-            if (!in_array($command['command'], _drush_recipes_require_shell_exec())) {
-              drush_invoke_process($command['target'], $command['command'], $command['arguments'], $command['options']);
+            else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
+              $default = FALSE;
+              // check for a default case which allows us to pass --y successfully
+              if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'])) {
+                $default = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'];
+              }
+              // force a selection to be made
+              while (!$which = drush_choice_with_custom_defaults($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $default, $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]));
+              drush_print($which);
+              // @todo fix inconsistent return data from drush_choice_with_custom_defaults
+              if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which])) {
+                $which = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which];
+              }
+              drush_log(dt('Adding ingredient: ') . $which, 'ok');
+              // recursive since they just selected a reference
+              drush_drush_recipes_drush_cook_recipes(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $which), TRUE);
+            }
+            // allow for custom format or else assume argument based
+            else if (isset($call['_drush_recipes_custom_format'])) {
+              // allow for generic overriding of this command
+              drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, $call['_drush_recipes_custom_format']);
+              // we put a lot of faith in the developer to know why they just did
+              // all this but it will allow for custom call structures beyond those
+              // provided by the base plugin
+              drush_command_invoke_all_ref('drush_recipes_' . $call['_drush_recipes_custom_format'] . '_command_invoke_alter', $command);
+            }
+            // should we stop looping?
+            if ($command['loop'] == 'x') {
+                $answers = array('nope', 'again');
+                while (!$answer = drush_choice_with_custom_defaults($answers, 'nope', dt('Run this ingredient again?'), '!value'));
+                if ($answer == 'nope') {
+                  $finished = TRUE;
+                }
+            }
+            else if ($command['loop_pos'] < $command['loop']) {
+              $command['loop_pos']++;
             }
             else {
-              // this is the simple method for running when non interactive
-              $smash_command = 'drush ' . $command['target'] . ' ' . $command['command'] . ' ' . implode(' ', $command['arguments']) . ' ' . $option_out;
-              drush_print($smash_command);
-              drush_shell_exec($smash_command);
-              $shell_output = drush_shell_exec_output();
-              foreach ($shell_output as $shell) {
-                drush_print($shell);
-              }
+              $finished = TRUE;
             }
           }
-          else if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL])) {
-            $default = FALSE;
-            // check for a default case which allows us to pass --y successfully
-            if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'])) {
-              $default = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'];
-            }
-            // force a selection to be made
-            while (!$which = drush_choice_with_custom_defaults($command[DRUSH_RECIPES_FORMAT_CONDITIONAL], $default, $command[DRUSH_RECIPES_FORMAT_CONDITIONAL_QUESTION]));
-            drush_print($which);
-            // @todo fix inconsistent return data from drush_choice_with_custom_defaults
-            if (isset($command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which])) {
-              $which = $command[DRUSH_RECIPES_FORMAT_CONDITIONAL][$which];
-            }
-            drush_log(dt('Adding ingredient: ') . $which, 'ok');
-            // recursive since they just selected a reference
-            drush_drush_recipes_drush_cook_recipes(str_replace('.' . DRUSH_RECIPE_EXTENSION, '', $which), TRUE);
-          }
-        }
-        // allow for custom format or else assume argument based
-        else if (isset($call['_drush_recipes_custom_format'])) {
-          // allow for generic overriding of this command
-          drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, $call['_drush_recipes_custom_format']);
-          // we put a lot of faith in the developer to know why they just did
-          // all this but it will allow for custom call structures beyond those
-          // provided by the base plugin
-          drush_command_invoke_all_ref('drush_recipes_' . $call['_drush_recipes_custom_format'] . '_command_invoke_alter', $command);
         }
         else {
           // allow for super simple uncooking of commands
@@ -1917,6 +1949,17 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
     // this means you can cook a recipe with these values downsteam by supplying
     // the option at run time: drush cook recipe --mlt-token=value
     $default = drush_get_option('mlt-' . str_replace('[', '', str_replace(']', '', $token)));
+      // support for looping if we are looping
+      if (isset($command['loop']) && isset($command['loop_pos'])) {
+        // if we only have 1 item then don't bother
+        $tmp = drush_get_option('looping-mlt-' . str_replace('[', '', str_replace(']', '', $token)));
+        $default_array = explode(',', $tmp);
+        $default = $default_array[$command['loop_pos']];
+        // AUTOMATIC SETTING BASED ON THE AVAILABLE OPTIONS IN THE LOOP!!!
+        if ($command['loop'] == 'x' && drush_get_option('yes', FALSE)) {
+          $command['loop'] = count($default_array);
+        }
+      }
     // use the mlt-token style so long as its not NULL
     if ($default !== NULL) {
       $default_set = TRUE;
