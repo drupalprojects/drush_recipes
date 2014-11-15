@@ -36,6 +36,7 @@
             ],
             "options": {
                 "mlt-ccr_machine_name": "article",
+                "mlt-ccr_field_machine_name": "field_image",
                 "mlt-ccr_field_type": "image",
                 "mlt-ccr_field_widget": "image_image"
             }
