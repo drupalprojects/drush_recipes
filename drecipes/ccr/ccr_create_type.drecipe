@@ -8,21 +8,21 @@
             "madlib": "TRUE",
             "command": "php-eval",
             "arguments": [
-                "node_type_save(array('type' => '[content_type]','name' => '[content_name]','base' => 'node_content','module' => 'node','has_title' => 1))"
+                "\"node_type_save(array('type' => '[content_type]','name' => '[content_name]','base' => 'node_content','module' => 'node','has_title' => 1))\""
             ],
             "tokens": {
                 "[content_type]": "Content type machine name",
                 "[content_name]": "Human readable name"
             },
             "defaults": {
-                "[content_type]": "machine_name",
-                "[content_name]": "Human Name"
+                "[content_type]": "page",
+                "[content_name]": "Page"
             }
         }
     ],
     "metadata": {
         "type": "add-on",
-        "description": "Create a new content type",
+        "description": "Create a new content type via interactive prompt",
         "version": "1.0",
         "author": "btopro"
     }
