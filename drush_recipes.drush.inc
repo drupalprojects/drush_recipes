@@ -1735,8 +1735,17 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
         $drush[] = $call;
         // see if we should print nicely formatted debug stuff
         if ($list) {
-          // format the same as target based
-          $print = 'MADLIB: drush';
+          $print = 'MADLIB ';
+          if (isset($call['loop'])) {
+            if ($call['loop'] == 'x') {
+              $loop = 'unlimited';
+            }
+            else {
+              $loop = $call['loop'];
+            }
+            $print .= "LOOP ($loop) ";
+          }
+          $print .= ': drush';
           // target is optional and will inherit higher level context if not set
           if (isset($call['target']) && !empty($call['target'])) {
             $print .= ' ' . $call['target'];
@@ -1757,6 +1766,10 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
           if (isset($call['defaults']) && !empty($call['defaults'])) {
             $print .= "\n" . _drush_recipes_indent($indent+1) . dt('defaults: ');
             foreach ($call['defaults'] as $key => $val) {
+              $default = drush_get_option('mlt-' . str_replace('[', '', str_replace(']', '', $key)));
+              if ($default !== NULL) {
+                $val = $default;
+              }
               // make sure first option gets the dashes it needs
               $print .= "\n" . _drush_recipes_indent($indent+1) . ' ' . $key . ' => ' . $val;
             }
@@ -1768,7 +1781,17 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
         $drush[] = $call;
         // see if we should print nicely formatted debug stuff
         if ($list) {
-          $print = 'drush';
+          $print = '';
+          if (isset($call['loop'])) {
+            if ($call['loop'] == 'x') {
+              $loop = 'unlimited';
+            }
+            else {
+              $loop = $call['loop'];
+            }
+            $print .= "LOOP ($loop) : ";
+          }
+          $print .= 'drush';
           // target is optional and will inherit higher level context if not set
           if (isset($call['target']) && !empty($call['target'])) {
             $print .= ' ' . $call['target'];
@@ -1789,6 +1812,17 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
         }
       break;
       case DRUSH_RECIPES_FORMAT_CONDITIONAL:
+        $print = 'CONDITIONAL';
+        if (isset($call['loop'])) {
+          if ($call['loop'] == 'x') {
+            $loop = 'unlimited';
+          }
+          else {
+            $loop = $call['loop'];
+          }
+          $print .= " LOOP ($loop)";
+        }
+        $print .= ' : drush';
         //  conditional is complex so processing has to happen at run time
         $drush[] = $call;
         if ($list) {
@@ -1797,7 +1831,7 @@ function _drush_recipes_recipe_to_drush($recipe, $indent = 1, $recurse = TRUE, $
           if (isset($call[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'])) {
             $out = str_replace($call[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'], '(default) ' . $call[DRUSH_RECIPES_FORMAT_CONDITIONAL]['default'], $out);
           }
-          drush_print(_drush_recipes_indent($indent+1) . 'CONDITIONAL: ' . $out);
+          drush_print(_drush_recipes_indent($indent+1) . $print);
         }
       break;
       case DRUSH_RECIPES_FORMAT_ARGUMENT:
@@ -1949,17 +1983,17 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
     // this means you can cook a recipe with these values downsteam by supplying
     // the option at run time: drush cook recipe --mlt-token=value
     $default = drush_get_option('mlt-' . str_replace('[', '', str_replace(']', '', $token)));
-      // support for looping if we are looping
-      if (isset($command['loop']) && isset($command['loop_pos'])) {
-        // if we only have 1 item then don't bother
-        $tmp = drush_get_option('looping-mlt-' . str_replace('[', '', str_replace(']', '', $token)));
-        $default_array = explode(',', $tmp);
-        $default = $default_array[$command['loop_pos']];
-        // AUTOMATIC SETTING BASED ON THE AVAILABLE OPTIONS IN THE LOOP!!!
-        if ($command['loop'] == 'x' && drush_get_option('yes', FALSE)) {
-          $command['loop'] = count($default_array);
-        }
+    // support for looping if we are looping
+    if (isset($command['loop']) && isset($command['loop_pos'])) {
+      // if we only have 1 item then don't bother
+      $tmp = drush_get_option('looping-mlt-' . str_replace('[', '', str_replace(']', '', $token)));
+      $default_array = explode(',', $tmp);
+      $default = $default_array[$command['loop_pos']];
+      // AUTOMATIC SETTING BASED ON THE AVAILABLE OPTIONS IN THE LOOP!!!
+      if ($command['loop'] == 'x' && drush_get_option('yes', FALSE)) {
+        $command['loop'] = count($default_array);
       }
+    }
     // use the mlt-token style so long as its not NULL
     if ($default !== NULL) {
       $default_set = TRUE;
