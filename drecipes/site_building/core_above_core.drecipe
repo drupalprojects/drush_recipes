@@ -15,6 +15,13 @@
       "arguments": [
         "views_ui"
       ]
+    },
+    {
+      "command": "vset",
+      "arguments": [
+        "jquery_update_jquery_admin_version",
+        "default"
+      ]
     }
   ],
   "metadata": {
