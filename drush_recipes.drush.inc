@@ -165,7 +165,7 @@ function drush_recipes_drush_command() {
       'simple-uncook' => dt('Allow for a simple recipe reversal, like swapping enables for disables; good for lazy devs with simple recipes.'),
     ),
     'allow-additional-options' => TRUE,
-    'aliases' => array('cook'),
+    'aliases' => array('cook', 'c'),
     'examples' => array(
       'drush drush-cook-recipes dr_security' =>
         'Run the dr_security recipe',
@@ -1240,8 +1240,8 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
             else if (isset($call['_drush_recipes_custom_format'])) {
               // allow for generic overriding of this command
               drush_command_invoke_all_ref('drush_recipes_command_invoke_alter', $command, $call['_drush_recipes_custom_format']);
-              // we put a lot of faith in the developer to know why they just did
-              // all this but it will allow for custom call structures beyond those
+              // we put faith in the developer to know why they just did
+              // this but it will allow for custom call structures beyond those
               // provided by the base plugin
               drush_command_invoke_all_ref('drush_recipes_' . $call['_drush_recipes_custom_format'] . '_command_invoke_alter', $command);
             }
