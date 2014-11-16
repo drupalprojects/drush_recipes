@@ -7,7 +7,7 @@
         {
             "command": "field-info",
             "arguments": [
-                "fields"
+                "types"
             ]
         },
         {
