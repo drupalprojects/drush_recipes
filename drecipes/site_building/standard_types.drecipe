@@ -7,7 +7,7 @@
         {
             "command": "cook",
             "arguments": [
-                "ccr_create_type"
+                "ccr_add_type"
             ]
         },
         {
@@ -22,7 +22,7 @@
         {
             "command": "cook",
             "arguments": [
-                "ccr_create_type,ccr_add_field"
+                "ccr_add_type,ccr_add_field"
             ],
             "options": {
                 "mlt-ccr_machine_name": "article",
