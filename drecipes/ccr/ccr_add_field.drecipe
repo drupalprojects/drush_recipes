@@ -5,6 +5,12 @@
     "core": "7",
     "recipe": [
         {
+            "command": "field-info",
+            "arguments": [
+                "fields"
+            ]
+        },
+        {
             "madlib": "TRUE",
             "command": "field-create",
             "arguments": [
