@@ -1362,7 +1362,17 @@ function _drush_recipes_command_defaults(&$command) {
       $command['options'][$short] = $val;
     }
   }
-  // pull in the context of the operation to get the appropriate root/uri
+  // pull in the context of the operation
+  $context = drush_get_context();
+  // test for madlib tokens which should be passed downward so that future
+  // defaults in the block-chain are inherited from parent calls
+  foreach ($context['cli'] as $key => $val) {
+    if (strpos($key, 'mlt-') === 0 || strpos($key, 'looping-mlt-') === 0) {
+      $command['options'][$key] = $val;
+    }
+  }
+
+  // to get the appropriate root/uri
   // this can be missed in the event that a command calls for two aliases
   // such as a ddt command which wants to execute the command against the
   // first target but drush pulls the options from the 2nd, effectively
@@ -1371,7 +1381,6 @@ function _drush_recipes_command_defaults(&$command) {
   // This is required to allow the --make-it-so option flag on ddt function
   // correctly, but would potentially trip up other complex calls; hence this
   // windy explaination
-  $context = drush_get_context();
   if (in_array($context['arguments'][0], array('drush-diff-targets-recipe', 'ddt')) && drush_get_option('make-it-so', FALSE)) {
     if (isset($context['site-aliases'][$command['target']])) {
       if (isset($context['site-aliases'][$command['target']]['root'])) {
@@ -1975,23 +1984,37 @@ function drush_recipes_drush_recipes_madlib_command_invoke_alter(&$command) {
   // allow for falling back if they make a mistake
   $original = $command;
   $print = 'drush ';
+  // pull in the context of the operation
+  $context = drush_get_context();
   // loop through tokens requesting input from the user
   foreach ($command['tokens'] as $token => $description) {
-    $default = NULL;
+    $default = $context_mlt = NULL;
     $default_set = FALSE;
+    // assemble the actual token from the options that we would see
+    $strip_token = str_replace('[', '', str_replace(']', '', $token));
+    // start by checking the larger context, then trickle down to local scope
+    if (isset($context['cli']['mlt-' . $strip_token])) {
+      $context_mlt = $context['cli']['mlt-' . $strip_token];
+    }
+    // now test for the looping context which has priority
+    if (isset($context['cli']['looping-mlt-' . $strip_token])) {
+      $context_mlt = $context['cli']['looping-mlt-' . $strip_token];
+    }
     // check for option at commandline, this overrides empty AND default values
     // this means you can cook a recipe with these values downsteam by supplying
     // the option at run time: drush cook recipe --mlt-token=value
-    $default = drush_get_option('mlt-' . str_replace('[', '', str_replace(']', '', $token)));
+    $default = drush_get_option('mlt-' . $strip_token, $context_mlt);
     // support for looping if we are looping
     if (isset($command['loop']) && isset($command['loop_pos'])) {
       // if we only have 1 item then don't bother
-      $tmp = drush_get_option('looping-mlt-' . str_replace('[', '', str_replace(']', '', $token)));
-      $default_array = explode(',', $tmp);
-      $default = $default_array[$command['loop_pos']];
-      // AUTOMATIC SETTING BASED ON THE AVAILABLE OPTIONS IN THE LOOP!!!
-      if ($command['loop'] == 'x' && drush_get_option('yes', FALSE)) {
-        $command['loop'] = count($default_array);
+      $tmp = drush_get_option('looping-mlt-' . $strip_token);
+      if (!empty($tmp)) {
+        $default_array = explode(',', $tmp);
+        $default = $default_array[$command['loop_pos']-1];
+        // AUTOMATIC SETTING BASED ON THE AVAILABLE OPTIONS IN THE LOOP!!!
+        if ($command['loop'] == 'x' && drush_get_option('yes', FALSE)) {
+          $command['loop'] = count($default_array);
+        }
       }
     }
     // use the mlt-token style so long as its not NULL
