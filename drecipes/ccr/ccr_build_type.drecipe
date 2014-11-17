@@ -12,7 +12,8 @@
             ],
             "options": {
                 "mlt-ccr_machine_name": "[ccr_machine_name]",
-                "mlt-ccr_human_name": "[ccr_human_name]"
+                "mlt-ccr_human_name": "[ccr_human_name]",
+                "y": true
             },
             "tokens": {
                 "[ccr_machine_name]": "Content type machine name",
@@ -35,7 +36,8 @@
                 "mlt-ccr_field_machine_name": "[ccr_field_machine_name]",
                 "mlt-ccr_field_type": "[ccr_field_type]",
                 "mlt-ccr_field_widget": "[ccr_field_widget]",
-                "entity_type": "node"
+                "entity_type": "node",
+                "y": true
             },
             "tokens": {
                 "[ccr_machine_name]": "content type",
