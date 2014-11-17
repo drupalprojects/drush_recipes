@@ -1369,6 +1369,8 @@ function _drush_recipes_command_defaults(&$command) {
   foreach ($context['cli'] as $key => $val) {
     if (strpos($key, 'mlt-') === 0 || strpos($key, 'looping-mlt-') === 0) {
       $command['options'][$key] = $val;
+      // mlt is outside of the traditional global optionset, turn strict off
+      $command['options']['strict'] = 0;
     }
   }
 
