@@ -40,10 +40,10 @@
                 "profiler_builder"
             ],
             "tokens": {
-                "[target1]": "new site you want to install / reimage"
+                "[target2]": "new site you want to install / reimage"
             },
             "defaults": {
-                "[target1]": "@self"
+                "[target2]": "@self"
             }
         },
         {
