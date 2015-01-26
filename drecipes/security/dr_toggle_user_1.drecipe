@@ -22,6 +22,7 @@
         "description": "Toggle the user 1 account for added security",
         "version": "1.0",
         "type": "add-on",
-        "author": "btopro"
+        "author": "btopro",
+        "lazy": "u1off"
     }
 }

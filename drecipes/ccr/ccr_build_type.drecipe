@@ -71,6 +71,7 @@
         "type": "add-on",
         "version": "1.0",
         "author": "bto108",
-        "description": "Generate a new content type with an unlimited number of fields"
+        "description": "Generate a new content type with an unlimited number of fields",
+        "lazy": "cbt"
     }
 }
