@@ -1579,6 +1579,10 @@ function _drush_recipes_system_rebuild_recipe_data() {
     // Merge in defaults and save.
     $recipes[$key]->drecipe = $recipe->drecipe + $defaults;
     krsort($recipes[$key]->drecipe);
+    // check for the lazy metadata property
+    if (isset($recipes[$key]->drecipe['metadata']['lazy'])) {
+      $recipes[$recipes[$key]->drecipe['metadata']['lazy']] = $recipes[$key];
+    }
   }
   // allow last minute recipe data modification
   drush_command_invoke_all_ref('drush_recipes_system_recipe_data_alter', $recipes);
