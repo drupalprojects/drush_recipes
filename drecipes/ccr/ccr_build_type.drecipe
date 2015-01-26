@@ -51,6 +51,12 @@
                 "[ccr_field_type]": "text_with_summary",
                 "[ccr_field_widget]": "text_textarea_with_summary"
             }
+        },
+        {
+            "command": "cc",
+            "arguments": [
+                "all"
+            ]
         }
     ],
     "metadata": {
