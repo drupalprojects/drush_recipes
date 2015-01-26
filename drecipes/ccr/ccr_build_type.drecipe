@@ -3,6 +3,14 @@
     "drush_recipes_api": "1.0",
     "weight": "0",
     "core": "7",
+    "env": {
+        "tokens": {
+            "[ccr_machine_name]": "Content type machine name"
+        },
+        "defaults": {
+            "[ccr_machine_name]": "page"
+        }
+    },
     "recipe": [
         {
             "madlib": "true",
