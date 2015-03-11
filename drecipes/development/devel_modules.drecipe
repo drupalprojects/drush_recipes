@@ -7,7 +7,7 @@
         {
             "command": "en",
             "arguments": [
-                "profiler_builder,devel,devel_image_provider,coder"
+                "profiler_builder,devel,devel_image_provider"
             ]
         }
     ],
