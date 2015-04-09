@@ -1324,14 +1324,14 @@ function drush_drush_recipes_drush_cook_recipes($list = '', $recurse = FALSE, $r
               drush_command_invoke_all_ref('drush_recipes_' . $call['_drush_recipes_custom_format'] . '_command_invoke_alter', $command);
             }
             // should we stop looping?
-            if ($command['loop'] == 'x') {
+            if (isset($command['loop']) && $command['loop'] == 'x') {
                 $answers = array('nope', 'again');
                 while (!$answer = drush_choice_with_custom_defaults($answers, 'nope', dt('Run this ingredient again?'), '!value'));
                 if ($answer == 'nope') {
                   $finished = TRUE;
                 }
             }
-            else if ($command['loop_pos'] < $command['loop']) {
+            else if (isset($command['loop_pos']) && isset($command['loop']) && $command['loop_pos'] < $command['loop']) {
               $command['loop_pos']++;
             }
             else {
